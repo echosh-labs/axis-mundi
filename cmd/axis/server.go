@@ -12,11 +12,19 @@ import (
 // Server handles UI delivery and API proxying
 type Server struct {
 	workspace *workspace.Service
+	user      *workspace.User
 }
 
 // NoteResponse for JSON delivery
 type NoteResponse struct {
 	Notes []workspace.Note `json:"notes"`
+}
+
+// UserResponse provides minimal operator context for the UI.
+type UserResponse struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	ID    string `json:"id"`
 }
 
 func (s *Server) handleListNotes(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +33,17 @@ func (s *Server) handleListNotes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(NoteResponse{Notes: notes})
+}
+
+func (s *Server) handleUser(w http.ResponseWriter, r *http.Request) {
+	if s.user == nil {
+		http.Error(w, "user profile unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(UserResponse{Name: s.user.Name, Email: s.user.Email, ID: s.user.ID})
 }
 
 func (s *Server) handleDeleteNote(w http.ResponseWriter, r *http.Request) {
@@ -43,11 +61,12 @@ func (s *Server) handleDeleteNote(w http.ResponseWriter, r *http.Request) {
 }
 
 // StartServer initializes the routes and begins listening for HTTP requests
-func StartServer(ws *workspace.Service) {
-	s := &Server{workspace: ws}
+func StartServer(ws *workspace.Service, user *workspace.User) {
+	s := &Server{workspace: ws, user: user}
 
 	http.HandleFunc("/api/notes", s.handleListNotes)
 	http.HandleFunc("/api/notes/delete", s.handleDeleteNote)
+	http.HandleFunc("/api/user", s.handleUser)
 
 	// Serve static files (React build) from a web directory
 	// Ensure this directory exists or adjust to your frontend build path

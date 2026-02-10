@@ -74,5 +74,5 @@ func main() {
 
 	// 7. Start the Persistent TUI Server
 	// This function blocks and handles all incoming TUI requests.
-	StartServer(ws)
+	StartServer(ws, user)
 }
