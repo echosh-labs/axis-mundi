@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -69,14 +70,48 @@ func main() {
 	log.Printf("Success! Verified User: %s (%s)", user.Name, user.Email)
 
 	// 7. Execute Logic: Fetch Keep Notes
-	log.Println("Fetching Google Keep notes...")
-	notes, err := ws.ListNotes()
+	log.Println("Fetching Google Keep note summaries...")
+	noteOpts := workspace.ListNotesOptions{PageSize: 10}
+	summaries, nextPageToken, err := ws.ListNoteSummaries(ctx, noteOpts)
 	if err != nil {
 		log.Fatalf("Keep API call failed: %v", err)
 	}
 
-	log.Printf("Found %d notes:", len(notes))
-	for _, note := range notes {
-		log.Printf("- [%s] %s", note.Title, note.Snippet)
+	log.Printf("Found %d notes", len(summaries))
+	if nextPageToken != "" {
+		log.Printf("Next page token: %s", nextPageToken)
 	}
+
+	for _, summary := range summaries {
+		log.Printf("- ID: %s | Title: %s | Snippet: %s", summary.ID, summary.Title, summary.Snippet)
+
+		detailedNote, err := ws.GetNote(ctx, summary.ID)
+		if err != nil {
+			log.Printf("  Detail lookup failed: %v", err)
+			continue
+		}
+
+		bodyDescriptor := describeNoteBody(detailedNote.Body)
+		attachmentCount := len(detailedNote.Attachments)
+		lastUpdated := detailedNote.UpdateTime
+		if lastUpdated == "" {
+			lastUpdated = "unknown"
+		}
+
+		log.Printf("  Detail: Type=%s | Attachments=%d | Updated=%s", bodyDescriptor, attachmentCount, lastUpdated)
+	}
+}
+
+func describeNoteBody(section *keep.Section) string {
+	if section == nil {
+		return "empty"
+	}
+	if section.Text != nil && section.Text.Text != "" {
+		return "text"
+	}
+	if section.List != nil {
+		items := len(section.List.ListItems)
+		return fmt.Sprintf("list (%d items)", items)
+	}
+	return "unknown"
 }
