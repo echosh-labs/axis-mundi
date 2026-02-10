@@ -1,3 +1,8 @@
+/*
+File: cmd/axis/main.go
+Description: Entry point for the Axis application. Initializes Google Workspace services
+using service account impersonation and starts the web-based terminal server.
+*/
 package main
 
 import (
@@ -5,7 +10,6 @@ import (
 	"log"
 	"os"
 
-	"axis/internal/server"
 	"axis/internal/workspace"
 
 	"github.com/joho/godotenv"
@@ -16,26 +20,25 @@ import (
 )
 
 func main() {
+	// 1. Load environment variables
 	if err := godotenv.Load(); err != nil {
 		log.Println("Info: No .env file found, relying on shell environment variables.")
 	}
 
 	ctx := context.Background()
 
+	// 2. Validation
 	adminEmail := os.Getenv("ADMIN_EMAIL")
 	serviceAccountEmail := os.Getenv("SERVICE_ACCOUNT_EMAIL")
-	testEmail := os.Getenv("TEST_USER_EMAIL")
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	userEmail := os.Getenv("USER_EMAIL")
+
+	if adminEmail == "" || serviceAccountEmail == "" || userEmail == "" {
+		log.Fatal("Error: ADMIN_EMAIL, SERVICE_ACCOUNT_EMAIL, and USER_EMAIL must be set.")
 	}
 
-	if adminEmail == "" || serviceAccountEmail == "" || testEmail == "" {
-		log.Fatal("Error: ADMIN_EMAIL, SERVICE_ACCOUNT_EMAIL, and TEST_USER_EMAIL must be set.")
-	}
+	log.Printf("Initializing Services for %s via SA %s...", adminEmail, serviceAccountEmail)
 
-	log.Printf("Initializing Axis Engine for %s...", adminEmail)
-
+	// 3. Create the Token Source with Admin and Keep scopes
 	ts, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
 		TargetPrincipal: serviceAccountEmail,
 		Subject:         adminEmail,
@@ -48,6 +51,7 @@ func main() {
 		log.Fatalf("Failed to create token source: %v", err)
 	}
 
+	// 4. Create the Google API Services
 	adminSvc, err := admin.NewService(ctx, option.WithTokenSource(ts))
 	if err != nil {
 		log.Fatalf("Failed to create Admin service: %v", err)
@@ -58,18 +62,17 @@ func main() {
 		log.Fatalf("Failed to create Keep service: %v", err)
 	}
 
+	// 5. Initialize internal workspace wrapper
 	ws := workspace.NewService(adminSvc, keepSvc)
 
-	// Verify identity
-	user, err := ws.GetUser(testEmail)
+	// 6. Verification check
+	user, err := ws.GetUser(userEmail)
 	if err != nil {
-		log.Fatalf("Identity verification failed: %v", err)
+		log.Fatalf("Verification failed: %v", err)
 	}
-	log.Printf("Identity Verified: %s", user.Email)
+	log.Printf("Verification successful: %s (%s)", user.Name, user.Email)
 
-	// Launch Server
-	srv := server.NewServer(ws)
-	if err := srv.Start(port); err != nil {
-		log.Fatalf("Server shutdown: %v", err)
-	}
+	// 7. Start the Persistent TUI Server
+	// This function blocks and handles all incoming TUI requests.
+	StartServer(ws)
 }
