@@ -28,7 +28,7 @@ implementation, Tailwind styling, and Gemini API integration.
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
         const apiKey = ""; // Set by environment
 
         const App = () => {
@@ -42,6 +42,9 @@ implementation, Tailwind styling, and Gemini API integration.
             ]);
             const [notes, setNotes] = useState([]);
             const [user, setUser] = useState(null);
+            const [detailNote, setDetailNote] = useState(null);
+            const [detailLoading, setDetailLoading] = useState(false);
+            const [detailError, setDetailError] = useState(null);
             const scrollRef = useRef(null);
 
             const addLog = (type, message) => {
@@ -52,10 +55,44 @@ implementation, Tailwind styling, and Gemini API integration.
                 try {
                     const res = await fetch('/api/notes');
                     const data = await res.json();
-                    setNotes(data.notes || []);
+                    const list = Array.isArray(data) ? data : data?.notes;
+                    const resolved = Array.isArray(list) ? list : [];
+                    setNotes(resolved);
+                    setSelectedIndex((prev) => {
+                        if (resolved.length === 0) return 0;
+                        return Math.min(prev, resolved.length - 1);
+                    });
+                    if (resolved.length === 0) {
+                        setShowDetail(false);
+                        setDetailNote(null);
+                        setDetailError(null);
+                        setDetailLoading(false);
+                    }
                     addLog('success', 'Registry updated from Workspace.');
                 } catch (err) {
                     addLog('error', 'Failed to retrieve notes.');
+                }
+            };
+
+            const loadNoteDetail = async (id) => {
+                if (!id) {
+                    setDetailError('Missing note identifier.');
+                    return;
+                }
+                setDetailLoading(true);
+                setDetailNote(null);
+                setDetailError(null);
+                try {
+                    const res = await fetch(`/api/notes/detail?id=${encodeURIComponent(id)}`);
+                    if (!res.ok) throw new Error('detail fetch failed');
+                    const data = await res.json();
+                    setDetailNote(data);
+                    addLog('success', `Detail pulled: ${id}`);
+                } catch (err) {
+                    setDetailError('Failed to load note detail.');
+                    addLog('error', `Detail retrieval failed for: ${id}`);
+                } finally {
+                    setDetailLoading(false);
                 }
             };
 
@@ -83,6 +120,76 @@ implementation, Tailwind styling, and Gemini API integration.
                 }
             };
 
+            const formatNoteContent = useMemo(() => {
+                const firstDefined = (obj, keys) => {
+                    if (!obj) return undefined;
+                    for (const key of keys) {
+                        if (obj[key] !== undefined && obj[key] !== null) {
+                            return obj[key];
+                        }
+                    }
+                    return undefined;
+                };
+
+                const sectionFromNote = (note) => firstDefined(note, ['Body', 'body']);
+                const textNode = (container) => firstDefined(container, ['Text', 'text']);
+                const listNode = (container) => firstDefined(container, ['List', 'list']);
+                const listItems = (list) => firstDefined(list, ['ListItems', 'listItems']);
+                const childItems = (item) => firstDefined(item, ['ChildListItems', 'childListItems']);
+
+                const normalizeString = (value) => {
+                    if (typeof value === 'string') return value;
+                    if (!value) return '';
+                    if (typeof value.Text === 'string') return value.Text;
+                    if (typeof value.text === 'string') return value.text;
+                    if (typeof value.value === 'string') return value.value;
+                    return '';
+                };
+
+                return {
+                    fromNote(note) {
+                        const section = sectionFromNote(note);
+                        if (!section) {
+                            return 'No body content.';
+                        }
+
+                        const text = normalizeString(textNode(section));
+                        if (text.trim() !== '') {
+                            return text;
+                        }
+
+                        const list = listNode(section);
+                        const items = Array.isArray(listItems(list)) ? listItems(list) : [];
+                        if (items.length > 0) {
+                            const lines = [];
+                            const walk = (entries, depth) => {
+                                entries.forEach((entry) => {
+                                    const raw = normalizeString(textNode(entry));
+                                    const label = raw.trim() === '' ? '[Empty]' : raw;
+                                    const checked = entry?.Checked ? ' [x]' : '';
+                                    lines.push(`${'  '.repeat(depth)}- ${label}${checked}`);
+                                    const children = childItems(entry);
+                                    if (Array.isArray(children) && children.length > 0) {
+                                        walk(children, depth + 1);
+                                    }
+                                });
+                            };
+                            walk(items, 0);
+                            return lines.join('\n');
+                        }
+
+                        return 'No body content.';
+                    },
+                };
+            }, []);
+
+            const detailContent = useMemo(() => {
+                if (!detailNote) {
+                    return '';
+                }
+                return formatNoteContent.fromNote(detailNote);
+            }, [detailNote, formatNoteContent]);
+
             useEffect(() => {
                 fetchUser();
             }, []);
@@ -104,12 +211,20 @@ implementation, Tailwind styling, and Gemini API integration.
 
                     if (mode !== 'MANUAL') return;
 
-                    if (showDetail && key === 'escape') { setShowDetail(false); return; }
+                    if (showDetail && key === 'escape') { setShowDetail(false); setDetailNote(null); setDetailError(null); setDetailLoading(false); return; }
 
                     switch (e.key) {
-                        case 'ArrowDown': e.preventDefault(); setSelectedIndex(p => (p + 1) % notes.length); break;
-                        case 'ArrowUp': e.preventDefault(); setSelectedIndex(p => (p - 1 + notes.length) % notes.length); break;
-                        case 'Enter': case ' ': e.preventDefault(); setShowDetail(true); break;
+                        case 'ArrowDown': e.preventDefault(); if (notes.length > 0) { setSelectedIndex(p => (p + 1) % notes.length); } break;
+                        case 'ArrowUp': e.preventDefault(); if (notes.length > 0) { setSelectedIndex(p => (p - 1 + notes.length) % notes.length); } break;
+                        case 'Enter': case ' ': 
+                            e.preventDefault();
+                            if (notes.length === 0) break;
+                            const target = notes[selectedIndex];
+                            if (target) {
+                                setShowDetail(true);
+                                loadNoteDetail(target.ID);
+                            }
+                            break;
                         case 'Delete': case 'Backspace': 
                             if (notes[selectedIndex]) deleteNote(notes[selectedIndex].ID);
                             break;
@@ -117,10 +232,10 @@ implementation, Tailwind styling, and Gemini API integration.
                 };
                 window.addEventListener('keydown', handleKeyDown);
                 return () => window.removeEventListener('keydown', handleKeyDown);
-            }, [mode, selectedIndex, notes, showDetail]);
+            }, [mode, selectedIndex, notes, showDetail, loadNoteDetail, deleteNote]);
 
             return (
-                <div className="flex flex-col h-screen p-4 select-none relative">
+                <div className="flex flex-col h-screen p-4 select-text relative">
                     <div className="mb-4 border border-gray-900 bg-black/60 p-3 rounded flex justify-between items-center">
                         <div className="text-lg font-bold tracking-[0.6em] lowercase bg-gradient-to-r from-violet-900 via-purple-700 to-emerald-700 text-transparent bg-clip-text shimmer-text drop-shadow-[0_0_8px_rgba(76,29,149,0.45)]">axis mundi</div>
                         <div className="w-full max-w-sm">
@@ -172,12 +287,34 @@ implementation, Tailwind styling, and Gemini API integration.
                             ) : (
                                 <div className="flex-1 flex flex-col overflow-hidden bg-black/60 p-2 border border-blue-900/30 rounded">
                                     <div className="flex justify-between text-[10px] text-blue-400 mb-2 font-bold uppercase">
-                                        <span>Detail: {notes[selectedIndex]?.Title}</span>
-                                        <span onClick={() => setShowDetail(false)}>[ESC] EXIT</span>
+                                        <span>Detail: {notes[selectedIndex]?.Title || 'Unknown'}</span>
+                                        <span onClick={() => { setShowDetail(false); setDetailNote(null); setDetailError(null); setDetailLoading(false); }}>[ESC] EXIT</span>
                                     </div>
-                                    <pre className="flex-1 text-[10px] text-blue-300 overflow-auto scrollbar-hide bg-black/40 p-2">
-                                        {JSON.stringify(notes[selectedIndex], null, 2)}
-                                    </pre>
+                                    {detailLoading && (
+                                        <div className="flex-1 text-[10px] text-blue-300 overflow-auto scrollbar-hide bg-black/40 p-2">Loading note detail...</div>
+                                    )}
+                                    {!detailLoading && detailError && (
+                                        <div className="flex-1 text-[10px] text-red-400 overflow-auto scrollbar-hide bg-black/40 p-2">{detailError}</div>
+                                    )}
+                                    {!detailLoading && !detailError && detailNote && (
+                                        <div className="flex-1 flex flex-col gap-2 overflow-auto scrollbar-hide">
+                                            <div className="border border-emerald-900/40 bg-black/50 p-2 rounded">
+                                                <div className="text-[9px] uppercase text-emerald-500 mb-1">Body Content</div>
+                                                <div className="text-[11px] text-emerald-200 whitespace-pre-wrap leading-relaxed select-text">
+                                                    {detailContent || 'No body content.'}
+                                                </div>
+                                            </div>
+                                            <div className="border border-blue-900/40 bg-black/50 p-2 rounded">
+                                                <div className="text-[9px] uppercase text-blue-400 mb-1">Raw Payload</div>
+                                                <pre className="text-[10px] text-blue-300 overflow-auto scrollbar-hide bg-black/40 p-2 rounded select-text">
+                                                    {JSON.stringify(detailNote, null, 2)}
+                                                </pre>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!detailLoading && !detailError && !detailNote && (
+                                        <div className="flex-1 text-[10px] text-blue-300 overflow-auto scrollbar-hide bg-black/40 p-2">No data available.</div>
+                                    )}
                                 </div>
                             )}
                         </div>

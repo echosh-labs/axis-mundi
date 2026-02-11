@@ -37,6 +37,23 @@ func (s *Server) handleListNotes(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(NoteResponse{Notes: notes})
 }
 
+func (s *Server) handleNoteDetail(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	note, err := s.workspace.GetNote(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(note)
+}
+
 func (s *Server) handleUser(w http.ResponseWriter, r *http.Request) {
 	if s.user == nil {
 		http.Error(w, "user profile unavailable", http.StatusServiceUnavailable)
@@ -65,6 +82,7 @@ func StartServer(ws *workspace.Service, user *workspace.User) {
 	s := &Server{workspace: ws, user: user}
 
 	http.HandleFunc("/api/notes", s.handleListNotes)
+	http.HandleFunc("/api/notes/detail", s.handleNoteDetail)
 	http.HandleFunc("/api/notes/delete", s.handleDeleteNote)
 	http.HandleFunc("/api/user", s.handleUser)
 

@@ -36,6 +36,7 @@ func (s *Server) Start(port string) error {
 	// API Routes
 	mux.HandleFunc("/api/notes", s.handleNotes)
 	mux.HandleFunc("/api/notes/delete", s.handleDelete)
+	mux.HandleFunc("/api/notes/detail", s.handleNoteDetail)
 	mux.HandleFunc("/api/mode", s.handleMode)
 	mux.HandleFunc("/api/stream", s.handleStream)
 
@@ -58,6 +59,26 @@ func (s *Server) handleNotes(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(notes)
+}
+
+func (s *Server) handleNoteDetail(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	note, err := s.ws.GetNote(context.Background(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(note); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
