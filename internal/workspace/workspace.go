@@ -20,13 +20,6 @@ type User struct {
 	ID    string
 }
 
-// Note represents a simplified Keep note
-type Note struct {
-	Title   string
-	Snippet string
-	ID      string
-}
-
 // NewService creates a new workspace service wrapper
 func NewService(adminSvc *admin.Service, keepSvc *keep.Service) *Service {
 	return &Service{

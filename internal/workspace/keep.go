@@ -12,8 +12,15 @@ import (
 
 const (
 	noteSnippetLimit    = 50
-	defaultListPageSize = 10
+	defaultListPageSize = 30
 )
+
+// Note represents a simplified Keep note
+type Note struct {
+	Title   string
+	Snippet string
+	ID      string
+}
 
 var errKeepUnavailable = errors.New("google keep service is not configured")
 
@@ -24,7 +31,7 @@ type ListNotesOptions struct {
 	PageToken string
 }
 
-// ListNotes fetches the first 10 notes for the authenticated user and returns summaries.
+// ListNotes fetches the first 30 notes for the authenticated user and returns summaries.
 func (s *Service) ListNotes() ([]Note, error) {
 	summaries, _, err := s.ListNoteSummaries(context.Background(), ListNotesOptions{PageSize: defaultListPageSize})
 	return summaries, err
