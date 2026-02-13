@@ -16,9 +16,12 @@ import (
 
 	"github.com/joho/godotenv"
 	admin "google.golang.org/api/admin/directory/v1"
+	docs "google.golang.org/api/docs/v1"
+	drive "google.golang.org/api/drive/v3"
 	"google.golang.org/api/impersonate"
 	keep "google.golang.org/api/keep/v1"
 	"google.golang.org/api/option"
+	sheets "google.golang.org/api/sheets/v4"
 )
 
 func main() {
@@ -48,6 +51,9 @@ func main() {
 		Scopes: []string{
 			admin.AdminDirectoryUserReadonlyScope,
 			keep.KeepScope,
+			docs.DocumentsScope,
+			sheets.SpreadsheetsScope,
+			drive.DriveReadonlyScope,
 		},
 	})
 	if err != nil {
@@ -65,8 +71,23 @@ func main() {
 		log.Fatalf("Failed to create Keep service: %v", err)
 	}
 
+	docsSvc, err := docs.NewService(ctx, option.WithTokenSource(ts))
+	if err != nil {
+		log.Fatalf("Failed to create Docs service: %v", err)
+	}
+
+	sheetsSvc, err := sheets.NewService(ctx, option.WithTokenSource(ts))
+	if err != nil {
+		log.Fatalf("Failed to create Sheets service: %v", err)
+	}
+
+	driveSvc, err := drive.NewService(ctx, option.WithTokenSource(ts))
+	if err != nil {
+		log.Fatalf("Failed to create Drive service: %v", err)
+	}
+
 	// 5. Initialize internal workspace wrapper
-	ws := workspace.NewService(adminSvc, keepSvc)
+	ws := workspace.NewService(adminSvc, keepSvc, docsSvc, sheetsSvc, driveSvc)
 
 	// 6. Verification check
 	user, err := ws.GetUser(userEmail)

@@ -1,7 +1,7 @@
 /*
 File: web/src/App.jsx
 Description: React terminal interface for Axis Mundi. Handles keyboard navigation, 
-real-time telemetry display, and note management with lowercase key binding.
+real-time telemetry display, and unified registry management with lowercase key binding.
 */
 import { useState, useEffect, useRef, useMemo } from 'react';
 
@@ -12,18 +12,18 @@ const App = () => {
     const [logs, setLogs] = useState([
         { timestamp: new Date().toLocaleTimeString(), type: 'system', message: 'Axis TUI Initialized. Mode: MANUAL' }
     ]);
-    const [notes, setNotes] = useState([]);
+    const [registry, setRegistry] = useState([]);
     const [user, setUser] = useState(null);
-    const [detailNote, setDetailNote] = useState(null);
+    const [detailItem, setDetailItem] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState(null);
     const [connected, setConnected] = useState(false);
     const scrollRef = useRef(null);
 
-    const stateRef = useRef({ mode, selectedIndex, notes, showDetail });
+    const stateRef = useRef({ mode, selectedIndex, registry, showDetail });
     useEffect(() => {
-        stateRef.current = { mode, selectedIndex, notes, showDetail };
-    }, [mode, selectedIndex, notes, showDetail]);
+        stateRef.current = { mode, selectedIndex, registry, showDetail };
+    }, [mode, selectedIndex, registry, showDetail]);
 
     const addLog = (type, message) => {
         setLogs(prev => [...prev, { timestamp: new Date().toLocaleTimeString(), type, message }]);
@@ -38,48 +38,86 @@ const App = () => {
         }
     };
 
-    const fetchNotes = async () => {
+    const fetchRegistry = async () => {
         try {
-            const res = await fetch('/api/notes');
+            const res = await fetch('/api/registry');
             const data = await res.json();
             const list = Array.isArray(data) ? data : [];
-            setNotes(list);
+            setRegistry(list);
             addLog('success', 'Manual registry refresh.');
         } catch (err) {
-            addLog('error', 'Failed to retrieve notes.');
+            addLog('error', 'Failed to retrieve registry.');
         }
     };
 
-    const loadNoteDetail = async (id) => {
-        if (!id) {
-            setDetailError('Missing note identifier.');
+    const loadItemDetail = async (item) => {
+        if (!item || !item.id) {
+            setDetailError('Missing item identifier.');
             return;
         }
         setDetailLoading(true);
-        setDetailNote(null);
+        setDetailItem(null);
         setDetailError(null);
+
+        let url = '';
+        switch (item.type) {
+            case 'keep':
+                url = `/api/notes/detail?id=${encodeURIComponent(item.id)}`;
+                break;
+            case 'doc':
+                url = `/api/docs?id=${encodeURIComponent(item.id)}`;
+                break;
+            case 'sheet':
+                url = `/api/sheets?id=${encodeURIComponent(item.id)}`;
+                break;
+            default:
+                setDetailError(`Unknown item type: ${item.type}`);
+                setDetailLoading(false);
+                return;
+        }
+
         try {
-            const res = await fetch(`/api/notes/detail?id=${encodeURIComponent(id)}`);
-            if (!res.ok) throw new Error('detail fetch failed');
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`detail fetch failed for ${item.type}`);
             const data = await res.json();
-            setDetailNote(data);
-            addLog('success', `Detail pulled: ${id}`);
+            setDetailItem(data);
+            addLog('success', `Detail pulled for ${item.type}: ${item.id}`);
         } catch (err) {
-            setDetailError('Failed to load note detail.');
-            addLog('error', `Detail retrieval failed for: ${id}`);
+            setDetailError(`Failed to load detail for ${item.type}.`);
+            addLog('error', `Detail retrieval failed for: ${item.id}`);
         } finally {
             setDetailLoading(false);
         }
     };
 
-    const deleteNote = async (id) => {
+    const deleteItem = async (item) => {
+        if (!item || !item.id) return;
+
+        let url = '';
+        switch (item.type) {
+            case 'keep':
+                url = `/api/notes/delete?id=${encodeURIComponent(item.id)}`;
+                break;
+            case 'doc':
+                url = `/api/docs/delete?id=${encodeURIComponent(item.id)}`;
+                break;
+            case 'sheet':
+                url = `/api/sheets/delete?id=${encodeURIComponent(item.id)}`;
+                break;
+            default:
+                addLog('error', `Unknown item type for deletion: ${item.type}`);
+                return;
+        }
+
         try {
-            const res = await fetch(`/api/notes/delete?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+            const res = await fetch(url, { method: 'DELETE' });
             if (res.ok) {
-                addLog('success', `Object purged: ${id}`);
+                addLog('success', `Object purged (${item.type}): ${item.id}`);
+            } else {
+                throw new Error('Purge request failed');
             }
         } catch (err) {
-            addLog('error', `Purge failed for: ${id}`);
+            addLog('error', `Purge failed for ${item.type}: ${item.id}`);
         }
     };
 
@@ -111,7 +149,7 @@ const App = () => {
             try {
                 const data = JSON.parse(e.data);
                 const list = Array.isArray(data) ? data : [];
-                setNotes(list);
+                setRegistry(list);
                 setSelectedIndex(prev => {
                     if (list.length === 0) return 0;
                     return Math.min(prev, list.length - 1);
@@ -124,18 +162,18 @@ const App = () => {
 
     useEffect(() => {
         const handleKeyDown = (e) => {
-            const { mode, selectedIndex, notes, showDetail } = stateRef.current;
+            const { mode, selectedIndex, registry, showDetail } = stateRef.current;
             const key = e.key.toLowerCase();
 
             if (key === 'a') { syncMode('AUTO'); setShowDetail(false); return; }
             if (key === 'm') { syncMode('MANUAL'); return; }
-            if (key === 'r') { fetchNotes(); return; }
+            if (key === 'r') { fetchRegistry(); return; }
 
             if (mode !== 'MANUAL') return;
 
             if (showDetail && key === 'escape') {
                 setShowDetail(false);
-                setDetailNote(null);
+                setDetailItem(null);
                 setDetailError(null);
                 setDetailLoading(false);
                 return;
@@ -144,29 +182,29 @@ const App = () => {
             switch (e.key) {
                 case 'ArrowDown':
                     e.preventDefault();
-                    if (notes.length > 0) {
-                        setSelectedIndex((selectedIndex + 1) % notes.length);
+                    if (registry.length > 0) {
+                        setSelectedIndex((selectedIndex + 1) % registry.length);
                     }
                     break;
                 case 'ArrowUp':
                     e.preventDefault();
-                    if (notes.length > 0) {
-                        setSelectedIndex((selectedIndex - 1 + notes.length) % notes.length);
+                    if (registry.length > 0) {
+                        setSelectedIndex((selectedIndex - 1 + registry.length) % registry.length);
                     }
                     break;
                 case 'Enter':
                 case ' ':
                     e.preventDefault();
-                    if (notes.length === 0) break;
-                    const target = notes[selectedIndex];
+                    if (registry.length === 0) break;
+                    const target = registry[selectedIndex];
                     if (target) {
                         setShowDetail(true);
-                        loadNoteDetail(target.id);
+                        loadItemDetail(target);
                     }
                     break;
                 case 'Delete':
                 case 'Backspace':
-                    if (notes[selectedIndex]) deleteNote(notes[selectedIndex].id);
+                    if (registry[selectedIndex]) deleteItem(registry[selectedIndex]);
                     break;
             }
         };
@@ -226,9 +264,22 @@ const App = () => {
     }, []);
 
     const detailContent = useMemo(() => {
-        if (!detailNote) return '';
-        return formatNoteContent.fromNote(detailNote);
-    }, [detailNote, formatNoteContent]);
+        if (!detailItem) return '';
+        const selectedItem = registry[selectedIndex];
+        if (selectedItem && selectedItem.type === 'keep') {
+            return formatNoteContent.fromNote(detailItem);
+        }
+        return 'Detail view not applicable for this item type.';
+    }, [detailItem, formatNoteContent, registry, selectedIndex]);
+
+    const getTypeStyles = (type) => {
+        switch (type) {
+            case 'keep': return 'border-yellow-700/60 text-yellow-300';
+            case 'doc': return 'border-blue-700/60 text-blue-300';
+            case 'sheet': return 'border-green-700/60 text-green-300';
+            default: return 'border-gray-700/60 text-gray-300';
+        }
+    };
 
     return (
         <div className="flex flex-col h-screen p-4 select-text relative outline-none" tabIndex="0">
@@ -250,7 +301,7 @@ const App = () => {
                 <div className="flex gap-8">
                     <span className={mode === 'AUTO' ? "text-emerald-500 font-bold" : "text-gray-600"}>[A] AUTO</span>
                     <span className={mode === 'MANUAL' ? "text-yellow-600 font-bold" : "text-gray-600"}>[M] MANUAL</span>
-                    <span className="text-blue-500 cursor-pointer" onClick={fetchNotes}>[R] REFRESH</span>
+                    <span className="text-blue-500 cursor-pointer" onClick={fetchRegistry}>[R] REFRESH</span>
                 </div>
                 <div className={mode === 'AUTO' ? "text-emerald-400 animate-pulse" : "text-yellow-600"}>STATUS: {mode}</div>
             </div>
@@ -272,47 +323,52 @@ const App = () => {
 
                 <div className="w-1/2 flex flex-col border border-gray-900 bg-black/40 p-3 rounded overflow-hidden">
                     <div className="text-[9px] text-gray-600 mb-2 uppercase border-b border-gray-900 pb-1 flex justify-between">
-                        <span>Note Registry</span>
+                        <span>Unified Registry</span>
                         <span className="text-[8px] text-gray-700">{connected ? 'LIVE STREAM' : 'DISCONNECTED'}</span>
                     </div>
                     {!showDetail ? (
                         <div className="space-y-1 overflow-y-auto scrollbar-hide">
-                            {notes.map((note, i) => (
-                                <div key={note.id} className={`p-2 border transition-all ${i === selectedIndex && mode === 'MANUAL' ? 'bg-emerald-950/30 border-emerald-500 text-emerald-300' : 'border-transparent text-gray-600'}`}>
-                                    <div className="flex justify-between text-xs font-bold"><span>{note.title}</span></div>
-                                    <div className="text-[10px] truncate italic">{note.snippet}</div>
+                            {registry.map((item, i) => (
+                                <div key={item.id} className={`p-2 border transition-all ${i === selectedIndex && mode === 'MANUAL' ? 'bg-emerald-950/30 border-emerald-500 text-emerald-300' : 'border-transparent text-gray-600'}`}>
+                                    <div className="flex justify-between text-xs font-bold">
+                                        <span>{item.title}</span>
+                                        <span className={`text-[9px] uppercase px-2 py-0.5 rounded-full border ${getTypeStyles(item.type)}`}>{item.type}</span>
+                                    </div>
+                                    <div className="text-[10px] truncate italic">{item.snippet}</div>
                                 </div>
                             ))}
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col overflow-hidden bg-black/60 p-2 border border-blue-900/30 rounded">
                             <div className="flex justify-between text-[10px] text-blue-400 mb-2 font-bold uppercase">
-                                <span>Detail: {notes[selectedIndex]?.title || 'Unknown'}</span>
-                                <span className="cursor-pointer" onClick={() => { setShowDetail(false); setDetailNote(null); setDetailError(null); setDetailLoading(false); }}>[ESC] EXIT</span>
+                                <span>Detail: {registry[selectedIndex]?.title || 'Unknown'}</span>
+                                <span className="cursor-pointer" onClick={() => { setShowDetail(false); setDetailItem(null); setDetailError(null); setDetailLoading(false); }}>[ESC] EXIT</span>
                             </div>
                             {detailLoading && (
-                                <div className="flex-1 text-[10px] text-blue-300 overflow-auto scrollbar-hide bg-black/40 p-2">Loading note detail...</div>
+                                <div className="flex-1 text-[10px] text-blue-300 overflow-auto scrollbar-hide bg-black/40 p-2">Loading detail...</div>
                             )}
                             {!detailLoading && detailError && (
                                 <div className="flex-1 text-[10px] text-red-400 overflow-auto scrollbar-hide bg-black/40 p-2">{detailError}</div>
                             )}
-                            {!detailLoading && !detailError && detailNote && (
+                            {!detailLoading && !detailError && detailItem && (
                                 <div className="flex-1 flex flex-col gap-2 overflow-auto scrollbar-hide">
-                                    <div className="border border-emerald-900/40 bg-black/50 p-2 rounded">
-                                        <div className="text-[9px] uppercase text-emerald-500 mb-1">Body Content</div>
-                                        <div className="text-[11px] text-emerald-200 whitespace-pre-wrap leading-relaxed select-text">
-                                            {detailContent || 'No body content.'}
+                                    {registry[selectedIndex]?.type === 'keep' && (
+                                        <div className="border border-emerald-900/40 bg-black/50 p-2 rounded">
+                                            <div className="text-[9px] uppercase text-emerald-500 mb-1">Body Content</div>
+                                            <div className="text-[11px] text-emerald-200 whitespace-pre-wrap leading-relaxed select-text">
+                                                {detailContent || 'No body content.'}
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                     <div className="border border-blue-900/40 bg-black/50 p-2 rounded">
                                         <div className="text-[9px] uppercase text-blue-400 mb-1">Raw Payload</div>
                                         <pre className="text-[10px] text-blue-300 overflow-auto scrollbar-hide bg-black/40 p-2 rounded select-text">
-                                            {JSON.stringify(detailNote, null, 2)}
+                                            {JSON.stringify(detailItem, null, 2)}
                                         </pre>
                                     </div>
                                 </div>
                             )}
-                            {!detailLoading && !detailError && !detailNote && (
+                            {!detailLoading && !detailError && !detailItem && (
                                 <div className="flex-1 text-[10px] text-blue-300 overflow-auto scrollbar-hide bg-black/40 p-2">No data available.</div>
                             )}
                         </div>

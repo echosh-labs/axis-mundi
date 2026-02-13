@@ -107,6 +107,11 @@ func (s *Server) Start(port string) error {
 	mux.HandleFunc("/api/notes/detail", s.handleNoteDetail)
 	mux.HandleFunc("/api/mode", s.handleMode)
 	mux.HandleFunc("/api/user", s.handleUser)
+	mux.HandleFunc("/api/sheets", s.handleGetSheet)
+	mux.HandleFunc("/api/sheets/delete", s.handleDeleteSheet)
+	mux.HandleFunc("/api/docs", s.handleGetDoc)
+	mux.HandleFunc("/api/docs/delete", s.handleDeleteDoc)
+	mux.HandleFunc("/api/registry", s.handleRegistry)
 
 	// SSE Endpoint
 	mux.HandleFunc("/api/events", s.handleEvents)
@@ -132,21 +137,21 @@ func (s *Server) runPoller() {
 		s.modeMu.RUnlock()
 
 		if mode == "AUTO" {
-			s.broadcastNotes()
+			s.broadcastRegistry()
 		}
 	}
 }
 
-func (s *Server) broadcastNotes() {
-	notes, err := s.ws.ListNotes()
+func (s *Server) broadcastRegistry() {
+	items, err := s.ws.ListRegistryItems()
 	if err != nil {
-		log.Printf("Error fetching notes for broadcast: %v", err)
+		log.Printf("Error fetching registry for broadcast: %v", err)
 		return
 	}
 
-	data, err := json.Marshal(notes)
+	data, err := json.Marshal(items)
 	if err != nil {
-		log.Printf("Error marshaling notes: %v", err)
+		log.Printf("Error marshaling registry: %v", err)
 		return
 	}
 
@@ -190,9 +195,9 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 
 	// Send initial state immediately
 	go func() {
-		notes, err := s.ws.ListNotes()
+		items, err := s.ws.ListRegistryItems()
 		if err == nil {
-			data, _ := json.Marshal(notes)
+			data, _ := json.Marshal(items)
 			msgChan <- data
 		}
 	}()
@@ -261,7 +266,7 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Immediate update to all clients
-	go s.broadcastNotes()
+	go s.broadcastRegistry()
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -296,4 +301,83 @@ func (s *Server) handleUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(UserResponse{Name: s.user.Name, Email: s.user.Email, ID: s.user.ID})
+}
+
+func (s *Server) handleRegistry(w http.ResponseWriter, r *http.Request) {
+	items, err := s.ws.ListRegistryItems()
+	if err != nil {
+		log.Printf("Error fetching registry items: %v", err) // Enhanced logging
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+}
+
+func (s *Server) handleGetSheet(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	sheet, err := s.ws.GetSheet(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(sheet); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) handleDeleteSheet(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.ws.DeleteSheet(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleGetDoc(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	doc, err := s.ws.GetDoc(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(doc); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) handleDeleteDoc(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.ws.DeleteDoc(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
