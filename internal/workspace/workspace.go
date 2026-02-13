@@ -37,6 +37,7 @@ type RegistryItem struct {
 	Type    string `json:"type"`
 	Title   string `json:"title"`
 	Snippet string `json:"snippet"`
+	Status  string `json:"status,omitempty"`
 }
 
 // NewService creates a new workspace service wrapper

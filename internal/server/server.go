@@ -21,13 +21,20 @@ import (
 
 const stateFileName = "axis.state.json"
 
+// SSEMessage wraps data with an optional event type.
+type SSEMessage struct {
+	Event string
+	Data  []byte
+}
+
 // Server handles HTTP communication and TUI orchestration.
 type Server struct {
 	ws        *workspace.Service
 	user      *workspace.User
 	mode      string
+	statuses  map[string]string
 	modeMu    sync.RWMutex
-	clients   map[chan []byte]bool
+	clients   map[chan SSEMessage]bool
 	clientsMu sync.Mutex
 }
 
@@ -45,16 +52,18 @@ type ModeResponse struct {
 
 // persistentState defines the structure for disk storage.
 type persistentState struct {
-	Mode string `json:"mode"`
+	Mode     string            `json:"mode"`
+	Statuses map[string]string `json:"statuses"`
 }
 
 // NewServer initializes the server with the workspace service and user context.
 func NewServer(ws *workspace.Service, user *workspace.User) *Server {
 	s := &Server{
-		ws:      ws,
-		user:    user,
-		mode:    "AUTO", // Default safe state
-		clients: make(map[chan []byte]bool),
+		ws:       ws,
+		user:     user,
+		mode:     "AUTO", // Default safe state
+		statuses: make(map[string]string),
+		clients:  make(map[chan SSEMessage]bool),
 	}
 	s.loadState() // Attempt to restore state from disk
 	return s
@@ -80,12 +89,19 @@ func (s *Server) loadState() {
 		s.mode = ps.Mode
 		log.Printf("State restored: %s", s.mode)
 	}
+	if ps.Statuses != nil {
+		s.statuses = ps.Statuses
+		log.Printf("Item statuses restored: %d items", len(s.statuses))
+	}
 }
 
 // saveState writes the current mode to disk.
 // Note: Must be called while s.modeMu is locked.
 func (s *Server) saveState() {
-	ps := persistentState{Mode: s.mode}
+	ps := persistentState{
+		Mode:     s.mode,
+		Statuses: s.statuses,
+	}
 	data, err := json.MarshalIndent(ps, "", "  ")
 	if err != nil {
 		log.Printf("Error marshaling state: %v", err)
@@ -112,6 +128,7 @@ func (s *Server) Start(port string) error {
 	mux.HandleFunc("/api/docs", s.handleGetDoc)
 	mux.HandleFunc("/api/docs/delete", s.handleDeleteDoc)
 	mux.HandleFunc("/api/registry", s.handleRegistry)
+	mux.HandleFunc("/api/status", s.handleStatus)
 
 	// SSE Endpoint
 	mux.HandleFunc("/api/events", s.handleEvents)
@@ -128,26 +145,76 @@ func (s *Server) Start(port string) error {
 }
 
 func (s *Server) runPoller() {
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
+	remaining := 60
 	for range ticker.C {
 		s.modeMu.RLock()
 		mode := s.mode
 		s.modeMu.RUnlock()
 
 		if mode == "AUTO" {
-			s.broadcastRegistry()
+			remaining--
+			s.broadcastTick(remaining)
+
+			if remaining <= 0 {
+				s.broadcastRegistry()
+				remaining = 60
+			}
+		} else {
+			remaining = 60
 		}
 	}
 }
 
+func (s *Server) broadcastTick(remaining int) {
+	data := []byte(fmt.Sprintf(`{"seconds_remaining": %d}`, remaining))
+
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
+	for clientChan := range s.clients {
+		select {
+		case clientChan <- SSEMessage{Event: "tick", Data: data}:
+		default:
+		}
+	}
+}
+
+// enrichItems adds stored status to the registry items.
+func (s *Server) enrichItems(items []workspace.RegistryItem) []workspace.RegistryItem {
+	s.modeMu.Lock()
+	defer s.modeMu.Unlock()
+
+	modified := false
+	enriched := make([]workspace.RegistryItem, len(items))
+	for i, item := range items {
+		enriched[i] = item
+		if status, ok := s.statuses[item.ID]; ok {
+			enriched[i].Status = status
+		} else if item.Type == "keep" {
+			enriched[i].Status = "Keep" // Default
+			if s.statuses == nil {
+				s.statuses = make(map[string]string)
+			}
+			s.statuses[item.ID] = "Keep"
+			modified = true
+		}
+	}
+
+	if modified {
+		s.saveState()
+	}
+	return enriched
+}
+
 func (s *Server) broadcastRegistry() {
-	items, err := s.ws.ListRegistryItems()
+	rawItems, err := s.ws.ListRegistryItems()
 	if err != nil {
 		log.Printf("Error fetching registry for broadcast: %v", err)
 		return
 	}
+	items := s.enrichItems(rawItems)
 
 	data, err := json.Marshal(items)
 	if err != nil {
@@ -159,7 +226,7 @@ func (s *Server) broadcastRegistry() {
 	defer s.clientsMu.Unlock()
 	for clientChan := range s.clients {
 		select {
-		case clientChan <- data:
+		case clientChan <- SSEMessage{Data: data}:
 		default:
 			// If client channel is blocked, skip to prevent server blocking
 		}
@@ -180,7 +247,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Register Client
-	msgChan := make(chan []byte, 1) // Buffer 1 to prevent slight blocking
+	msgChan := make(chan SSEMessage, 10) // Buffer 10 to prevent slight blocking
 	s.clientsMu.Lock()
 	s.clients[msgChan] = true
 	s.clientsMu.Unlock()
@@ -195,10 +262,11 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 
 	// Send initial state immediately
 	go func() {
-		items, err := s.ws.ListRegistryItems()
+		rawItems, err := s.ws.ListRegistryItems()
 		if err == nil {
+			items := s.enrichItems(rawItems)
 			data, _ := json.Marshal(items)
-			msgChan <- data
+			msgChan <- SSEMessage{Data: data}
 		}
 	}()
 
@@ -206,7 +274,10 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case msg := <-msgChan:
-			fmt.Fprintf(w, "data: %s\n\n", msg)
+			if msg.Event != "" {
+				fmt.Fprintf(w, "event: %s\n", msg.Event)
+			}
+			fmt.Fprintf(w, "data: %s\n\n", msg.Data)
 			flusher.Flush()
 		case <-r.Context().Done():
 			return
@@ -304,14 +375,35 @@ func (s *Server) handleUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRegistry(w http.ResponseWriter, r *http.Request) {
-	items, err := s.ws.ListRegistryItems()
+	rawItems, err := s.ws.ListRegistryItems()
 	if err != nil {
-		log.Printf("Error fetching registry items: %v", err) // Enhanced logging
+		log.Printf("Error fetching registry items: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	items := s.enrichItems(rawItems)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(items)
+}
+
+func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	status := r.URL.Query().Get("status")
+
+	if id == "" || status == "" {
+		http.Error(w, "missing id or status", http.StatusBadRequest)
+		return
+	}
+
+	s.modeMu.Lock()
+	if s.statuses == nil {
+		s.statuses = make(map[string]string)
+	}
+	s.statuses[id] = status
+	s.saveState()
+	s.modeMu.Unlock()
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) handleGetSheet(w http.ResponseWriter, r *http.Request) {

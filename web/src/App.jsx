@@ -18,6 +18,7 @@ const App = () => {
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState(null);
     const [connected, setConnected] = useState(false);
+    const [secondsRemaining, setSecondsRemaining] = useState(null);
     const scrollRef = useRef(null);
 
     const stateRef = useRef({ mode, selectedIndex, registry, showDetail });
@@ -43,7 +44,8 @@ const App = () => {
             const res = await fetch('/api/registry');
             const data = await res.json();
             const list = Array.isArray(data) ? data : [];
-            setRegistry(list);
+            const filtered = list.filter(item => item.type === 'keep');
+            setRegistry(filtered);
             addLog('success', 'Manual registry refresh.');
         } catch (err) {
             addLog('error', 'Failed to retrieve registry.');
@@ -145,17 +147,30 @@ const App = () => {
     useEffect(() => {
         const es = new EventSource('/api/events');
         es.onopen = () => { setConnected(true); addLog('success', 'Uplink established (SSE).'); };
+        
         es.onmessage = (e) => {
             try {
                 const data = JSON.parse(e.data);
                 const list = Array.isArray(data) ? data : [];
-                setRegistry(list);
+                const filtered = list.filter(item => item.type === 'keep');
+                setRegistry(filtered);
+                setSecondsRemaining(60); // Reset indication on refresh
                 setSelectedIndex(prev => {
-                    if (list.length === 0) return 0;
-                    return Math.min(prev, list.length - 1);
+                    if (filtered.length === 0) return 0;
+                    return Math.min(prev, filtered.length - 1);
                 });
             } catch (err) { console.error('Stream parse error', err); }
         };
+
+        es.addEventListener('tick', (e) => {
+            try {
+                const data = JSON.parse(e.data);
+                if (data.seconds_remaining !== undefined) {
+                    setSecondsRemaining(data.seconds_remaining);
+                }
+            } catch (err) { console.error('Tick parse error', err); }
+        });
+
         es.onerror = () => setConnected(false);
         return () => { es.close(); setConnected(false); };
     }, []);
@@ -167,7 +182,10 @@ const App = () => {
 
             if (key === 'a') { syncMode('AUTO'); setShowDetail(false); return; }
             if (key === 'm') { syncMode('MANUAL'); return; }
-            if (key === 'r') { fetchRegistry(); return; }
+            if (key === 'r') { 
+                if (mode === 'MANUAL') fetchRegistry(); 
+                return; 
+            }
 
             if (mode !== 'MANUAL') return;
 
@@ -205,6 +223,34 @@ const App = () => {
                 case 'Delete':
                 case 'Backspace':
                     if (registry[selectedIndex]) deleteItem(registry[selectedIndex]);
+                    break;
+                case 'PageUp':
+                case 'PageDown':
+                    e.preventDefault();
+                    if (registry.length === 0) break;
+                    const currentItem = registry[selectedIndex];
+                    if (currentItem && currentItem.type === 'keep') {
+                        const currentStatus = currentItem.status || 'Keep';
+                        const cycle = ['Keep', 'Execute', 'Delete'];
+                        let idx = cycle.indexOf(currentStatus);
+                        if (idx === -1) idx = 0;
+                        
+                        if (e.key === 'PageUp') {
+                            idx = (idx + 1) % cycle.length;
+                        } else {
+                            idx = (idx - 1 + cycle.length) % cycle.length;
+                        }
+                        
+                        const newStatus = cycle[idx];
+                        
+                        // Optimistic update
+                        setRegistry(prev => prev.map(item => 
+                            item.id === currentItem.id ? { ...item, status: newStatus } : item
+                        ));
+
+                        fetch(`/api/status?id=${encodeURIComponent(currentItem.id)}&status=${newStatus}`, { method: 'POST' })
+                            .catch(err => addLog('error', 'Failed to save status'));
+                    }
                     break;
             }
         };
@@ -272,9 +318,15 @@ const App = () => {
         return 'Detail view not applicable for this item type.';
     }, [detailItem, formatNoteContent, registry, selectedIndex]);
 
-    const getTypeStyles = (type) => {
-        switch (type) {
-            case 'keep': return 'border-yellow-700/60 text-yellow-300';
+    const getTagStyles = (tag) => {
+        switch (tag) {
+            case 'keep': 
+            case 'Keep':
+                return 'border-yellow-700/60 text-yellow-300';
+            case 'Delete': 
+                return 'border-red-700/60 text-red-300';
+            case 'Execute': 
+                return 'border-purple-700/60 text-purple-300';
             case 'doc': return 'border-blue-700/60 text-blue-300';
             case 'sheet': return 'border-green-700/60 text-green-300';
             default: return 'border-gray-700/60 text-gray-300';
@@ -299,9 +351,9 @@ const App = () => {
             </div>
             <div className="flex justify-between items-center border-b border-gray-900 pb-2 mb-4 text-[10px] tracking-widest uppercase">
                 <div className="flex gap-8">
-                    <span className={mode === 'AUTO' ? "text-emerald-500 font-bold" : "text-gray-600"}>[A] AUTO</span>
-                    <span className={mode === 'MANUAL' ? "text-yellow-600 font-bold" : "text-gray-600"}>[M] MANUAL</span>
-                    <span className="text-blue-500 cursor-pointer" onClick={fetchRegistry}>[R] REFRESH</span>
+                    <span className={mode === 'AUTO' ? "text-emerald-500 font-bold" : "text-gray-600 cursor-pointer"} onClick={() => syncMode('AUTO')}>[A] AUTO</span>
+                    <span className={mode === 'MANUAL' ? "text-yellow-600 font-bold" : "text-gray-600 cursor-pointer"} onClick={() => syncMode('MANUAL')}>[M] MANUAL</span>
+                    <span className={mode === 'MANUAL' ? "text-blue-500 cursor-pointer" : "text-gray-700 cursor-not-allowed"} onClick={() => mode === 'MANUAL' && fetchRegistry()}>[R] REFRESH</span>
                 </div>
                 <div className={mode === 'AUTO' ? "text-emerald-400 animate-pulse" : "text-yellow-600"}>STATUS: {mode}</div>
             </div>
@@ -328,15 +380,20 @@ const App = () => {
                     </div>
                     {!showDetail ? (
                         <div className="space-y-1 overflow-y-auto scrollbar-hide">
-                            {registry.map((item, i) => (
+                            {registry.map((item, i) => {
+                                const tagLabel = (item.type === 'keep') 
+                                    ? (item.status || 'Keep') 
+                                    : item.type;
+                                return (
                                 <div key={item.id} className={`p-2 border transition-all ${i === selectedIndex && mode === 'MANUAL' ? 'bg-emerald-950/30 border-emerald-500 text-emerald-300' : 'border-transparent text-gray-600'}`}>
                                     <div className="flex justify-between text-xs font-bold">
                                         <span>{item.title}</span>
-                                        <span className={`text-[9px] uppercase px-2 py-0.5 rounded-full border ${getTypeStyles(item.type)}`}>{item.type}</span>
+                                        <span className={`text-[9px] uppercase px-2 py-0.5 rounded-full border ${getTagStyles(tagLabel)}`}>{tagLabel}</span>
                                     </div>
-                                    <div className="text-[10px] truncate italic">{item.snippet}</div>
+                                    <div className="text-[10px] truncate italic">{item.snippet || 'No content preview.'}</div>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col overflow-hidden bg-black/60 p-2 border border-blue-900/30 rounded">
@@ -377,7 +434,12 @@ const App = () => {
             </div>
             <div className="mt-4 flex justify-between text-[9px] text-gray-600 border-t border-gray-900 pt-2 uppercase italic">
                 <span>Arrows: Nav | Enter: Inspect | Delete: Kill</span>
-                <span>Postural Alignment: Neutral Axis</span>
+                <span className="flex gap-4">
+                    {mode === 'AUTO' && secondsRemaining !== null && (
+                        <span className="text-emerald-500 font-bold">NEXT TICK: {secondsRemaining}s</span>
+                    )}
+                    <span>Postural Alignment: Neutral Axis</span>
+                </span>
             </div>
         </div>
     );
