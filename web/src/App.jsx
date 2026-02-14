@@ -20,11 +20,49 @@ const App = () => {
     const [connected, setConnected] = useState(false);
     const [secondsRemaining, setSecondsRemaining] = useState(null);
     const scrollRef = useRef(null);
+    const registryRef = useRef(null);
+    const detailRef = useRef(null);
 
     const stateRef = useRef({ mode, selectedIndex, registry, showDetail });
     useEffect(() => {
         stateRef.current = { mode, selectedIndex, registry, showDetail };
     }, [mode, selectedIndex, registry, showDetail]);
+
+    // Auto-scroll registry list when selectedIndex changes
+    useEffect(() => {
+        if (registryRef.current) {
+            const listContainer = registryRef.current;
+            const selectedElement = listContainer.children[selectedIndex];
+            
+            if (selectedElement) {
+                // Explicitly handle top/bottom anchoring
+                if (selectedIndex === 0) {
+                    listContainer.scrollTop = 0;
+                    return;
+                }
+                
+                // For the last item, ensure we scroll to the very bottom
+                if (selectedIndex === registry.length - 1) {
+                    listContainer.scrollTop = listContainer.scrollHeight;
+                    return;
+                }
+
+                const elementTop = selectedElement.offsetTop;
+                const elementBottom = elementTop + selectedElement.clientHeight;
+                const containerHeight = listContainer.clientHeight;
+                const scrollTop = listContainer.scrollTop;
+                
+                // If element is above the visible area (with some buffer for padding)
+                if (elementTop < scrollTop) {
+                    listContainer.scrollTop = elementTop;
+                }
+                // If element is below the visible area
+                else if (elementBottom > scrollTop + containerHeight) {
+                    listContainer.scrollTop = elementBottom - containerHeight;
+                }
+            }
+        }
+    }, [selectedIndex, registry, showDetail]);
 
     const addLog = (type, message) => {
         setLogs(prev => [...prev, { timestamp: new Date().toLocaleTimeString(), type, message }]);
@@ -210,13 +248,17 @@ const App = () => {
             switch (e.key) {
                 case 'ArrowDown':
                     e.preventDefault();
-                    if (registry.length > 0) {
+                    if (showDetail) {
+                        if (detailRef.current) detailRef.current.scrollTop += 50;
+                    } else if (registry.length > 0) {
                         setSelectedIndex((selectedIndex + 1) % registry.length);
                     }
                     break;
                 case 'ArrowUp':
                     e.preventDefault();
-                    if (registry.length > 0) {
+                    if (showDetail) {
+                        if (detailRef.current) detailRef.current.scrollTop -= 50;
+                    } else if (registry.length > 0) {
                         setSelectedIndex((selectedIndex - 1 + registry.length) % registry.length);
                     }
                     break;
@@ -387,13 +429,13 @@ const App = () => {
                     </div>
                 </div>
 
-                <div className="w-1/2 flex flex-col border border-gray-900 bg-black/40 p-3 rounded overflow-hidden">
-                    <div className="text-[9px] text-gray-600 mb-2 uppercase border-b border-gray-900 pb-1 flex justify-between">
+                <div className="w-1/2 flex flex-col border border-gray-900 bg-black/40 rounded overflow-hidden relative">
+                    <div className="text-[9px] text-gray-600 uppercase border-b border-gray-900 p-2 flex justify-between bg-black/60 z-10">
                         <span>Unified Registry</span>
                         <span className="text-[8px] text-gray-700">{connected ? 'LIVE STREAM' : 'DISCONNECTED'}</span>
                     </div>
                     {!showDetail ? (
-                        <div className="space-y-1 overflow-y-auto scrollbar-hide">
+                        <div ref={registryRef} className="flex-1 space-y-1 overflow-y-auto scrollbar-hide p-2 pb-2">
                             {registry.map((item, i) => {
                                 const tagLabel = (item.type === 'keep')
                                     ? (item.status || 'Pending')
@@ -408,12 +450,20 @@ const App = () => {
                                 </div>
                                 );
                             })}
+                            <div className="h-2"></div>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col overflow-hidden bg-black/60 p-2 border border-blue-900/30 rounded">
-                            <div className="flex justify-between text-[10px] text-blue-400 mb-2 font-bold uppercase">
-                                <span>Detail: {registry[selectedIndex]?.title || 'Unknown'}</span>
-                                <span className="cursor-pointer" onClick={() => { setShowDetail(false); setDetailItem(null); setDetailError(null); setDetailLoading(false); }}>[ESC] EXIT</span>
+                        <div className="flex-1 flex flex-col overflow-hidden bg-black/60 m-2 border border-blue-900/30 rounded p-2">
+                            <div className="flex justify-between items-start text-[10px] mb-2 font-bold uppercase">
+                                <div className="flex flex-col">
+                                    <span className="text-blue-400">Detail: {registry[selectedIndex]?.title || 'Unknown'}</span>
+                                    {registry[selectedIndex]?.type === 'keep' && (
+                                        <span className={`text-[9px] mt-1 ${registry[selectedIndex]?.status === 'Execute' ? 'text-purple-300' : 'text-yellow-300'}`}>
+                                            Status: {registry[selectedIndex]?.status || 'Pending'}
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="cursor-pointer text-blue-400" onClick={() => { setShowDetail(false); setDetailItem(null); setDetailError(null); setDetailLoading(false); }}>[ESC] EXIT</span>
                             </div>
                             {detailLoading && (
                                 <div className="flex-1 text-[10px] text-blue-300 overflow-auto scrollbar-hide bg-black/40 p-2">Loading detail...</div>
@@ -422,7 +472,7 @@ const App = () => {
                                 <div className="flex-1 text-[10px] text-red-400 overflow-auto scrollbar-hide bg-black/40 p-2">{detailError}</div>
                             )}
                             {!detailLoading && !detailError && detailItem && (
-                                <div className="flex-1 flex flex-col gap-2 overflow-auto scrollbar-hide">
+                                <div ref={detailRef} className="flex-1 flex flex-col gap-2 overflow-auto scrollbar-hide">
                                     {registry[selectedIndex]?.type === 'keep' && (
                                         <div className="border border-emerald-900/40 bg-black/50 p-2 rounded">
                                             <div className="text-[9px] uppercase text-emerald-500 mb-1">Body Content</div>
