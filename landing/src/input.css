@@ -70,6 +70,33 @@
         box-shadow: 0 14px 38px rgba(29, 211, 176, 0.24);
     }
 
+    .press-card {
+        display: inline-flex;
+        min-width: min(100%, 21rem);
+        padding: 0.9rem;
+        border-radius: 1.25rem;
+        border: 1px solid rgba(29, 211, 176, 0.22);
+        background: linear-gradient(145deg, rgba(29, 211, 176, 0.08), rgba(255, 255, 255, 0.02));
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+        transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .press-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(29, 211, 176, 0.42);
+        box-shadow: 0 24px 60px rgba(29, 211, 176, 0.12);
+    }
+
+    .press-card__badge {
+        display: block;
+        width: 100%;
+        max-width: 19rem;
+        height: auto;
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 0.75rem;
+    }
+
     .mono {
         font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
