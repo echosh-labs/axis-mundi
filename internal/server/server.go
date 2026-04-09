@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"axis/internal/database"
+	"axis/internal/mcp"
 	"axis/internal/workspace"
 )
 
@@ -210,6 +211,11 @@ func (s *Server) Start(port string) error {
 
 	// SSE Endpoint
 	mux.HandleFunc("/api/events", s.handleEvents)
+
+	// MCP Endpoint
+	mcpKey := os.Getenv("MCP_API_KEY")
+	mcpSrv := mcp.NewServer(s.ws, mcpKey, s.logger)
+	mcpSrv.RegisterRoutes(mux)
 
 	// Static Asset Mounting
 	fileServer := http.FileServer(http.Dir("./web/dist"))
@@ -647,7 +653,7 @@ func (s *Server) handleMode(w http.ResponseWriter, r *http.Request) {
 	s.modeMu.Unlock()
 
 	if newMode == "MANUAL" {
-		s.bufferTelemetry(fmt.Sprintf("Operational mode critically overridden to MANUAL by ui"))
+		s.bufferTelemetry("Operational mode critically overridden to MANUAL by ui")
 	}
 
 	s.triggerStateSnapshot()
