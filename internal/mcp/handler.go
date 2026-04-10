@@ -33,15 +33,17 @@ const (
 
 // Handler processes MCP JSON-RPC requests using the workspace service.
 type Handler struct {
-	ws     *workspace.Service
-	logger *slog.Logger
+	ws       *workspace.Service
+	statuses StatusManager
+	logger   *slog.Logger
 }
 
 // NewHandler creates a new MCP handler backed by the given workspace service.
-func NewHandler(ws *workspace.Service, logger *slog.Logger) *Handler {
+func NewHandler(ws *workspace.Service, statuses StatusManager, logger *slog.Logger) *Handler {
 	return &Handler{
-		ws:     ws,
-		logger: logger,
+		ws:       ws,
+		statuses: statuses,
+		logger:   logger,
 	}
 }
 
@@ -116,10 +118,23 @@ func (h *Handler) handleResourcesList(_ context.Context, req Request) *Response 
 	resources := make([]Resource, 0, len(items))
 	for _, item := range items {
 		uri, mime := resourceURIAndMime(item)
+		status := ""
+		if h.statuses != nil {
+			status = h.statuses.GetStatus(item.ID)
+		}
+		if status == "" {
+			status = "Pending"
+		}
+		desc := item.Snippet
+		if desc != "" {
+			desc = fmt.Sprintf("[%s] %s", status, desc)
+		} else {
+			desc = fmt.Sprintf("[%s]", status)
+		}
 		resources = append(resources, Resource{
 			URI:         uri,
 			Name:        item.Title,
-			Description: item.Snippet,
+			Description: desc,
 			MimeType:    mime,
 		})
 	}
@@ -298,7 +313,49 @@ func (h *Handler) handleToolsList(req Request) *Response {
 		// Registry tool
 		{
 			Name:        "list_workspace",
-			Description: "List all items across Google Keep, Docs, Sheets, and Gmail. Returns a unified registry with type, title, and snippet for each item.",
+			Description: "List all items across Google Keep, Docs, Sheets, and Gmail. Returns a unified registry with type, title, snippet, and current status for each item.",
+			InputSchema: map[string]interface{}{
+				"type":       "object",
+				"properties": map[string]interface{}{},
+			},
+		},
+		// Status tools
+		{
+			Name:        "get_status",
+			Description: "Get the current workflow status of a workspace item by ID. Returns the status string (e.g. Pending, Execute, Active, Blocked, Review, Complete, Error).",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"id": map[string]interface{}{
+						"type":        "string",
+						"description": "The item ID (e.g. 'notes/abc123', a doc ID, sheet ID, or Gmail thread ID)",
+					},
+				},
+				"required": []string{"id"},
+			},
+		},
+		{
+			Name:        "set_status",
+			Description: "Set the workflow status of a workspace item. Valid statuses: Pending, Execute, Active, Blocked, Review, Complete, Error.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"id": map[string]interface{}{
+						"type":        "string",
+						"description": "The item ID (e.g. 'notes/abc123', a doc ID, sheet ID, or Gmail thread ID)",
+					},
+					"status": map[string]interface{}{
+						"type":        "string",
+						"description": "The new status to set",
+						"enum":        []string{"Pending", "Execute", "Active", "Blocked", "Review", "Complete", "Error"},
+					},
+				},
+				"required": []string{"id", "status"},
+			},
+		},
+		{
+			Name:        "list_statuses",
+			Description: "List the current workflow status of all tracked workspace items. Returns item IDs mapped to their status values.",
 			InputSchema: map[string]interface{}{
 				"type":       "object",
 				"properties": map[string]interface{}{},
@@ -339,6 +396,12 @@ func (h *Handler) handleToolsCall(ctx context.Context, req Request) *Response {
 		return h.toolGetGmailThread(req.ID, params.Arguments)
 	case "list_workspace":
 		return h.toolListWorkspace(req.ID)
+	case "get_status":
+		return h.toolGetStatus(req.ID, params.Arguments)
+	case "set_status":
+		return h.toolSetStatus(req.ID, params.Arguments)
+	case "list_statuses":
+		return h.toolListStatuses(req.ID)
 	default:
 		return &Response{
 			JSONRPC: "2.0",
@@ -527,11 +590,19 @@ func (h *Handler) toolListWorkspace(id interface{}) *Response {
 	var entries []map[string]string
 	for _, item := range items {
 		uri, _ := resourceURIAndMime(item)
+		status := ""
+		if h.statuses != nil {
+			status = h.statuses.GetStatus(item.ID)
+		}
+		if status == "" {
+			status = "Pending"
+		}
 		entries = append(entries, map[string]string{
 			"id":      item.ID,
 			"type":    item.Type,
 			"title":   item.Title,
 			"snippet": item.Snippet,
+			"status":  status,
 			"uri":     uri,
 		})
 	}
@@ -539,6 +610,95 @@ func (h *Handler) toolListWorkspace(id interface{}) *Response {
 	resultJSON, _ := json.Marshal(map[string]interface{}{
 		"items": entries,
 		"total": len(entries),
+	})
+
+	return &Response{
+		JSONRPC: "2.0",
+		ID:      id,
+		Result: ToolResult{
+			Content: []ContentBlock{{Type: "text", Text: string(resultJSON)}},
+		},
+	}
+}
+
+// --- Status Tool Handlers ---
+
+func (h *Handler) toolGetStatus(id interface{}, args map[string]interface{}) *Response {
+	itemID, _ := args["id"].(string)
+	if itemID == "" {
+		return toolError(id, "id parameter is required")
+	}
+
+	if h.statuses == nil {
+		return toolError(id, "status management not available")
+	}
+
+	status := h.statuses.GetStatus(itemID)
+	if status == "" {
+		status = "Pending"
+	}
+
+	resultJSON, _ := json.Marshal(map[string]interface{}{
+		"id":     itemID,
+		"status": status,
+	})
+
+	return &Response{
+		JSONRPC: "2.0",
+		ID:      id,
+		Result: ToolResult{
+			Content: []ContentBlock{{Type: "text", Text: string(resultJSON)}},
+		},
+	}
+}
+
+func (h *Handler) toolSetStatus(id interface{}, args map[string]interface{}) *Response {
+	itemID, _ := args["id"].(string)
+	if itemID == "" {
+		return toolError(id, "id parameter is required")
+	}
+
+	status, _ := args["status"].(string)
+	if status == "" {
+		return toolError(id, "status parameter is required")
+	}
+
+	if h.statuses == nil {
+		return toolError(id, "status management not available")
+	}
+
+	if err := h.statuses.SetStatus(itemID, status); err != nil {
+		h.logger.Error("mcp: set_status failed", "id", itemID, "status", status, "error", err)
+		return toolError(id, "failed to set status: "+err.Error())
+	}
+
+	resultJSON, _ := json.Marshal(map[string]interface{}{
+		"id":     itemID,
+		"status": status,
+		"ok":     true,
+	})
+
+	return &Response{
+		JSONRPC: "2.0",
+		ID:      id,
+		Result: ToolResult{
+			Content: []ContentBlock{{Type: "text", Text: string(resultJSON)}},
+		},
+	}
+}
+
+func (h *Handler) toolListStatuses(id interface{}) *Response {
+	if h.statuses == nil {
+		return toolError(id, "status management not available")
+	}
+
+	statuses := h.statuses.ListStatuses()
+	allowed := h.statuses.AllowedStatuses()
+
+	resultJSON, _ := json.Marshal(map[string]interface{}{
+		"statuses":        statuses,
+		"total":           len(statuses),
+		"allowedStatuses": allowed,
 	})
 
 	return &Response{

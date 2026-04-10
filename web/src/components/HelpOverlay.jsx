@@ -22,7 +22,7 @@ const HelpOverlay = ({ isOpen, onClose }) => {
                             <div><span className="text-yellow-400 font-bold">Enter/Space</span> : Inspect highlighted item</div>
                             <div><span className="text-yellow-400 font-bold">Arrows</span> : Navigate list / scroll detail</div>
                             <div><span className="text-yellow-400 font-bold">Del/Bksp</span> : Purge selected item</div>
-                            <div><span className="text-yellow-400 font-bold">PgUp/PgDn</span> : Cycle Keep status (fwd/back)</div>
+                            <div><span className="text-yellow-400 font-bold">PgUp/PgDn</span> : Cycle item status (fwd/back)</div>
                             <div><span className="text-yellow-400 font-bold">K/D/S/G/V</span> : Filter Keep/Docs/Sheets/Gmail/All</div>
                             <div><span className="text-yellow-400 font-bold">Esc</span> : Close detail or help (manual)</div>
                         </div>
@@ -43,7 +43,7 @@ const HelpOverlay = ({ isOpen, onClose }) => {
                                 <tr className="border-t border-gray-800 hover:bg-white/5"><td className="py-1 text-green-400">/api/registry?refresh=1</td><td>GET</td><td>Manual fetch (R key)</td></tr>
                                 <tr className="border-t border-gray-800 hover:bg-white/5"><td className="py-1 text-cyan-400">/api/{'{'}notes|docs|sheets|gmail{'}'}/detail?id=X</td><td>GET</td><td>Detail payload for selected item</td></tr>
                                 <tr className="border-t border-gray-800 hover:bg-white/5"><td className="py-1 text-red-400">/api/{'{'}notes|docs|sheets|gmail{'}'}/delete?id=X</td><td>DELETE</td><td>Purge selected item</td></tr>
-                                <tr className="border-t border-gray-800 hover:bg-white/5"><td className="py-1 text-yellow-400">/api/status?id=X&amp;status=Y</td><td>POST</td><td>Update Keep status (cycle keys)</td></tr>
+                                <tr className="border-t border-gray-800 hover:bg-white/5"><td className="py-1 text-yellow-400">/api/status?id=X&amp;status=Y</td><td>POST</td><td>Update item status (cycle keys)</td></tr>
                                 <tr className="border-t border-gray-800 hover:bg-white/5"><td className="py-1 text-purple-400">/api/mode</td><td>GET</td><td>Current Auto/Manual state</td></tr>
                                 <tr className="border-t border-gray-800 hover:bg-white/5"><td className="py-1 text-purple-400">/api/mode?set=X</td><td>GET</td><td>Switch to AUTO or MANUAL</td></tr>
                                 <tr className="border-t border-gray-800 hover:bg-white/5"><td className="py-1 text-purple-400">/api/user</td><td>GET</td><td>Active user profile</td></tr>

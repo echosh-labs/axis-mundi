@@ -124,7 +124,7 @@ const App = () => {
     const handleCycleStatus = useCallback((direction) => {
         if (visibleRegistry.length === 0) return;
         const currentItem = visibleRegistry[selectedIndex];
-        if (!currentItem || currentItem.type !== 'keep') return;
+        if (!currentItem) return;
 
         const newStatus = nextStatus(currentItem.status || 'Pending', direction === 'forward' ? 'forward' : 'back');
         setRegistry(prev => prev.map(item => item.id === currentItem.id ? { ...item, status: newStatus } : item));

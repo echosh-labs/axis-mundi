@@ -206,6 +206,7 @@ func (s *Server) Start(port string) error {
 	mux.HandleFunc("/api/gmail/detail", s.handleGetGmailThread)
 	mux.HandleFunc("/api/gmail/delete", s.handleDeleteGmailThread)
 	mux.HandleFunc("/api/registry", s.handleRegistry)
+	mux.HandleFunc("/api/status", s.handleStatus)
 	// Google Chat Webhook
 	mux.HandleFunc("/api/chat/webhook", s.handleChatWebhook)
 
@@ -214,7 +215,7 @@ func (s *Server) Start(port string) error {
 
 	// MCP Endpoint
 	mcpKey := os.Getenv("MCP_API_KEY")
-	mcpSrv := mcp.NewServer(s.ws, mcpKey, s.logger)
+	mcpSrv := mcp.NewServer(s.ws, s, mcpKey, s.logger)
 	mcpSrv.RegisterRoutes(mux)
 
 	// Static Asset Mounting
@@ -306,7 +307,7 @@ func (s *Server) refreshRegistryCache() {
 		return
 	}
 
-	needsSnapshot := s.backfillKeepStatuses(items)
+	needsSnapshot := s.backfillStatuses(items)
 
 	// Clean up statuses for notes that no longer exist
 	if s.cleanupStaleStatuses(items) {
@@ -350,7 +351,7 @@ func (s *Server) enrichItems(items []workspace.RegistryItem) []workspace.Registr
 		res[i] = item
 		if status, ok := s.statuses[item.ID]; ok {
 			res[i].Status = status
-		} else if item.Type == "keep" {
+		} else {
 			res[i].Status = "Pending"
 		}
 	}
@@ -453,14 +454,62 @@ func (s *Server) getItemTitle(id string) string {
 	return ""
 }
 
-func (s *Server) backfillKeepStatuses(items []workspace.RegistryItem) bool {
+// --- StatusManager interface for MCP ---
+
+// GetStatus returns the current status for an item, or "" if unset.
+func (s *Server) GetStatus(id string) string {
+	s.modeMu.RLock()
+	defer s.modeMu.RUnlock()
+	return s.statuses[id]
+}
+
+// SetStatus sets the status for an item. Returns an error for invalid statuses.
+// This mirrors the handleStatus HTTP handler behavior: updates in-memory state,
+// broadcasts the change via SSE, persists to SQLite, and refreshes the registry.
+func (s *Server) SetStatus(id, status string) error {
+	if _, ok := allowedStatuses[status]; !ok {
+		return fmt.Errorf("invalid status: %s", status)
+	}
+
+	s.modeMu.Lock()
+	s.statuses[id] = status
+	s.modeMu.Unlock()
+
+	title := s.getItemTitle(id)
+	if title != "" {
+		s.broadcastStatusChange(id, status, title)
+
+		if status == "Error" {
+			s.bufferTelemetry(fmt.Sprintf("Item %s ('%s') transitioned to Error state", id, title))
+		}
+	}
+
+	s.triggerStateSnapshot()
+	s.broadcastRegistry()
+	return nil
+}
+
+// ListStatuses returns all item IDs mapped to their current status.
+func (s *Server) ListStatuses() map[string]string {
+	s.modeMu.RLock()
+	defer s.modeMu.RUnlock()
+	result := make(map[string]string, len(s.statuses))
+	for k, v := range s.statuses {
+		result[k] = v
+	}
+	return result
+}
+
+// AllowedStatuses returns the ordered list of valid status values.
+func (s *Server) AllowedStatuses() []string {
+	return []string{"Pending", "Execute", "Active", "Blocked", "Review", "Complete", "Error"}
+}
+
+func (s *Server) backfillStatuses(items []workspace.RegistryItem) bool {
 	needSnapshot := false
 	s.modeMu.Lock()
 	var newItems []workspace.RegistryItem
 	for _, item := range items {
-		if item.Type != "keep" {
-			continue
-		}
 		if _, exists := s.statuses[item.ID]; exists {
 			continue
 		}
@@ -470,7 +519,7 @@ func (s *Server) backfillKeepStatuses(items []workspace.RegistryItem) bool {
 	}
 	s.modeMu.Unlock()
 
-	// Broadcast telemetry for new notes initialized to Pending
+	// Broadcast telemetry for new items initialized to Pending
 	for _, item := range newItems {
 		s.broadcastStatusChange(item.ID, "Pending", item.Title)
 	}
@@ -478,21 +527,18 @@ func (s *Server) backfillKeepStatuses(items []workspace.RegistryItem) bool {
 	return needSnapshot
 }
 
-// cleanupStaleStatuses removes statuses for keep notes that no longer exist
+// cleanupStaleStatuses removes statuses for items that no longer exist in the registry
 func (s *Server) cleanupStaleStatuses(items []workspace.RegistryItem) bool {
-	// Build a set of current keep note IDs
-	keepIDs := make(map[string]bool)
+	// Build a set of all current registry item IDs
+	activeIDs := make(map[string]bool, len(items))
 	for _, item := range items {
-		if item.Type == "keep" {
-			keepIDs[item.ID] = true
-		}
+		activeIDs[item.ID] = true
 	}
 
 	needSnapshot := false
 	s.modeMu.Lock()
 	for id := range s.statuses {
-		// If this status is for a keep note that no longer exists, remove it
-		if !keepIDs[id] {
+		if !activeIDs[id] {
 			delete(s.statuses, id)
 			s.db.DeleteStatus(id)
 			needSnapshot = true

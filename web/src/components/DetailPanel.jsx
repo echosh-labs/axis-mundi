@@ -20,11 +20,9 @@ const DetailPanel = ({
         <div className="flex justify-between items-start text-[10px] mb-2 font-bold uppercase">
             <div className="flex flex-col">
                 <span className="text-blue-400">Detail: {title}</span>
-                {isKeep && (
-                    <span className={`text-[9px] mt-1 ${status === 'Execute' ? 'text-purple-300' : status === 'Complete' ? 'text-emerald-300' : 'text-yellow-300'}`}>
-                        Status: {status || 'Pending'}
-                    </span>
-                )}
+                <span className={`text-[9px] mt-1 ${status === 'Execute' ? 'text-purple-300' : status === 'Complete' ? 'text-emerald-300' : 'text-yellow-300'}`}>
+                    Status: {status || 'Pending'}
+                </span>
             </div>
             <span className="cursor-pointer text-blue-400" onClick={onExit}>[ESC] EXIT</span>
         </div>

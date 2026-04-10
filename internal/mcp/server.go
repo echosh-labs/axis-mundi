@@ -30,9 +30,9 @@ type Server struct {
 
 // NewServer creates an MCP server backed by the workspace service.
 // If apiKey is non-empty, requests must include a matching Authorization bearer token.
-func NewServer(ws *workspace.Service, apiKey string, logger *slog.Logger) *Server {
+func NewServer(ws *workspace.Service, statuses StatusManager, apiKey string, logger *slog.Logger) *Server {
 	return &Server{
-		handler: NewHandler(ws, logger),
+		handler: NewHandler(ws, statuses, logger),
 		apiKey:  apiKey,
 		logger:  logger,
 	}

@@ -19,9 +19,7 @@ const RegistryList = ({ registry, selectedIndex, mode, registryRef, getTagStyles
                     <div className="flex justify-between items-center text-xs font-bold">
                         <span>{item.title}</span>
                         <div className="flex gap-2 items-center">
-                            {item.type === 'keep' && (
-                                <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded ${getTagStyles(item.status || 'Pending')}`}>{item.status || 'Pending'}</span>
-                            )}
+                            <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded ${getTagStyles(item.status || 'Pending')}`}>{item.status || 'Pending'}</span>
                             <span className={`text-[9px] uppercase px-2 py-0.5 rounded-full border ${getTagStyles(item.type)}`}>{item.type}</span>
                         </div>
                     </div>

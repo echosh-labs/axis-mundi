@@ -119,9 +119,9 @@ export function useRegistry({ addLog, onRegistryChange } = {}) {
         es.addEventListener('status', (e) => {
             try {
                 const data = JSON.parse(e.data);
-                if (data.status && data.title) {
-                    const logType = data.status;
-                    addLog?.(logType, `Status → ${data.status}: ${data.title}`);
+                if (data.id && data.status) {
+                    setRegistry(prev => prev.map(item => item.id === data.id ? { ...item, status: data.status } : item));
+                    addLog?.(data.status, `Status → ${data.status}: ${data.title || data.id}`);
                 }
             } catch (err) { console.error('Status event parse error', err); }
         });

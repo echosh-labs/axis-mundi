@@ -134,3 +134,16 @@ type CallToolParams struct {
 	Name      string                 `json:"name"`
 	Arguments map[string]interface{} `json:"arguments,omitempty"`
 }
+
+// StatusManager abstracts item status operations so the MCP handler
+// can read and write statuses without importing the server package.
+type StatusManager interface {
+	// GetStatus returns the current status for an item, or "" if unset.
+	GetStatus(id string) string
+	// SetStatus sets the status for an item. Returns an error for invalid statuses.
+	SetStatus(id, status string) error
+	// ListStatuses returns all item IDs mapped to their current status.
+	ListStatuses() map[string]string
+	// AllowedStatuses returns the ordered list of valid status values.
+	AllowedStatuses() []string
+}

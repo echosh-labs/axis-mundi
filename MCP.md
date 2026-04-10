@@ -1,6 +1,6 @@
 # Axis Mundi MCP Server
 
-Model Context Protocol (MCP) server for exposing Google Keep notes to cloud code agents. Runs as an integrated endpoint within Axis Mundi.
+Model Context Protocol (MCP) server for exposing Google Workspace items (Keep, Docs, Sheets, Gmail) and their workflow statuses to cloud code agents. Runs as an integrated endpoint within Axis Mundi.
 
 ## Setup
 
@@ -92,7 +92,14 @@ curl -X POST http://localhost:8080/mcp \
 
 ### resources/list
 
-Lists all Keep notes as MCP resources. Each note gets a `keep://notes/{id}` URI.
+Lists all workspace items as MCP resources. Each item gets a typed URI:
+
+- Keep notes: `keep://notes/{id}`
+- Google Docs: `docs://documents/{id}`
+- Google Sheets: `sheets://spreadsheets/{id}`
+- Gmail threads: `gmail://threads/{id}`
+
+Resource descriptions include the current workflow status (e.g. `[Active] snippet text`).
 
 ```bash
 curl -X POST http://localhost:8080/mcp \
@@ -112,7 +119,13 @@ Response:
       {
         "uri": "keep://notes/abc123",
         "name": "Project Tasks",
-        "description": "- [ ] Deploy staging\n- [x] Review PR",
+        "description": "[Pending] - [ ] Deploy staging\n- [x] Review PR",
+        "mimeType": "text/plain"
+      },
+      {
+        "uri": "docs://documents/doc456",
+        "name": "Architecture Doc",
+        "description": "[Active] System design overview...",
         "mimeType": "text/plain"
       }
     ]
@@ -122,7 +135,7 @@ Response:
 
 ### resources/read
 
-Retrieves full content of a specific Keep note.
+Retrieves full content of a specific resource by URI.
 
 ```bash
 curl -X POST http://localhost:8080/mcp \
@@ -156,9 +169,11 @@ Response:
 
 ## MCP Tools
 
-Three tools are available via `tools/list` and `tools/call`.
+Ten tools are available via `tools/list` and `tools/call`.
 
-### list_notes
+### Keep Tools
+
+#### list_notes
 
 Lists all notes with titles and snippets.
 
@@ -174,7 +189,7 @@ curl -X POST http://localhost:8080/mcp \
   }'
 ```
 
-### get_note
+#### get_note
 
 Retrieves full content of a note by ID.
 
@@ -192,7 +207,7 @@ curl -X POST http://localhost:8080/mcp \
 
 The `noteId` accepts either the bare ID (`abc123`) or the full resource name (`notes/abc123`).
 
-### search_notes
+#### search_notes
 
 Searches notes by keyword across titles and content.
 
@@ -216,6 +231,170 @@ Response (wrapped in tool result content block):
     { "noteId": "abc123", "title": "Project Tasks", "snippet": "- [ ] Deploy staging..." }
   ],
   "total": 1
+}
+```
+
+### Docs, Sheets & Gmail Tools
+
+#### get_doc
+
+Retrieves the plain text content of a Google Doc.
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-key-here" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "get_doc", "arguments": { "documentId": "doc456" } }
+  }'
+```
+
+#### get_sheet
+
+Retrieves cell values from a Google Sheet. Reads A1:Z100 by default; pass `range` to customize.
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-key-here" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "get_sheet", "arguments": { "spreadsheetId": "sheet789", "range": "A1:D20" } }
+  }'
+```
+
+#### get_gmail_thread
+
+Retrieves the full conversation content of a Gmail thread.
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-key-here" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "get_gmail_thread", "arguments": { "threadId": "thread123" } }
+  }'
+```
+
+### Registry Tool
+
+#### list_workspace
+
+Lists all items across Keep, Docs, Sheets, and Gmail with their current workflow status.
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-key-here" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "list_workspace", "arguments": {} }
+  }'
+```
+
+Response:
+
+```json
+{
+  "items": [
+    { "id": "notes/abc123", "type": "keep", "title": "Project Tasks", "snippet": "...", "status": "Active", "uri": "keep://notes/abc123" },
+    { "id": "doc456", "type": "doc", "title": "Architecture Doc", "snippet": "...", "status": "Pending", "uri": "docs://documents/doc456" }
+  ],
+  "total": 2
+}
+```
+
+### Status Tools
+
+Workflow statuses track the lifecycle of workspace items. Valid status values:
+
+| Status | Description |
+|--------|-------------|
+| Pending | Default state, not yet acted upon |
+| Execute | Queued for execution |
+| Active | Currently being worked on |
+| Blocked | Waiting on external dependency |
+| Review | Ready for review |
+| Complete | Done |
+| Error | Failed or needs attention |
+
+#### get_status
+
+Get the current workflow status of an item.
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-key-here" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "get_status", "arguments": { "id": "notes/abc123" } }
+  }'
+```
+
+Response:
+
+```json
+{ "id": "notes/abc123", "status": "Active" }
+```
+
+#### set_status
+
+Set the workflow status of an item. Broadcasts the change via SSE to all connected TUI clients.
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-key-here" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "set_status", "arguments": { "id": "doc456", "status": "Review" } }
+  }'
+```
+
+Response:
+
+```json
+{ "id": "doc456", "status": "Review", "ok": true }
+```
+
+#### list_statuses
+
+List the current status of all tracked items and the allowed status values.
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-key-here" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "list_statuses", "arguments": {} }
+  }'
+```
+
+Response:
+
+```json
+{
+  "statuses": { "notes/abc123": "Active", "doc456": "Pending" },
+  "total": 2,
+  "allowedStatuses": ["Pending", "Execute", "Active", "Blocked", "Review", "Complete", "Error"]
 }
 ```
 
@@ -279,10 +458,12 @@ Any MCP-compatible client can connect via:
 ## Architecture
 
 ```
-Cloud Agent → POST /mcp → MCP Server → Workspace Service → Google Keep API
-                  ↑                          ↑
-           Bearer auth              Domain-wide delegation
-           (MCP_API_KEY)           (service account impersonation)
+Cloud Agent → POST /mcp → MCP Server → Workspace Service → Google APIs (Keep, Docs, Sheets, Gmail)
+                  ↑            ↓                ↑
+           Bearer auth   StatusManager   Domain-wide delegation
+           (MCP_API_KEY)  (get/set/list)  (service account impersonation)
+                               ↓
+                           SQLite + SSE broadcast → TUI clients
 ```
 
-The MCP server reuses the same authenticated `workspace.Service` as the rest of Axis Mundi. No separate credentials or service accounts are needed.
+The MCP server reuses the same authenticated `workspace.Service` as the rest of Axis Mundi. Status changes made by agents are persisted to SQLite and broadcast via SSE to all connected TUI clients in real time.

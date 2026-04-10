@@ -6,6 +6,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -21,7 +22,7 @@ func testLogger() *slog.Logger {
 }
 
 func testHandler() *Handler {
-	return NewHandler(nil, testLogger())
+	return NewHandler(nil, nil, testLogger())
 }
 
 func call(t *testing.T, h *Handler, method string, params interface{}) *Response {
@@ -140,6 +141,9 @@ func TestToolsList(t *testing.T) {
 		"get_sheet":        false,
 		"get_gmail_thread": false,
 		"list_workspace":   false,
+		"get_status":       false,
+		"set_status":       false,
+		"list_statuses":    false,
 	}
 
 	for _, tool := range tools {
@@ -218,7 +222,7 @@ func TestFormatNoteContent(t *testing.T) {
 }
 
 func TestHTTPEndpoint_MethodNotAllowed(t *testing.T) {
-	srv := NewServer(nil, "", testLogger())
+	srv := NewServer(nil, nil, "", testLogger())
 	req := httptest.NewRequest(http.MethodGet, "/mcp", nil)
 	rr := httptest.NewRecorder()
 
@@ -230,7 +234,7 @@ func TestHTTPEndpoint_MethodNotAllowed(t *testing.T) {
 }
 
 func TestHTTPEndpoint_EmptyBody(t *testing.T) {
-	srv := NewServer(nil, "", testLogger())
+	srv := NewServer(nil, nil, "", testLogger())
 	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(""))
 	rr := httptest.NewRecorder()
 
@@ -242,7 +246,7 @@ func TestHTTPEndpoint_EmptyBody(t *testing.T) {
 }
 
 func TestHTTPEndpoint_Auth(t *testing.T) {
-	srv := NewServer(nil, "secret-key", testLogger())
+	srv := NewServer(nil, nil, "secret-key", testLogger())
 
 	// No auth header
 	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"ping"}`))
@@ -272,7 +276,7 @@ func TestHTTPEndpoint_Auth(t *testing.T) {
 }
 
 func TestHTTPEndpoint_ValidRequest(t *testing.T) {
-	srv := NewServer(nil, "", testLogger())
+	srv := NewServer(nil, nil, "", testLogger())
 
 	body := `{"jsonrpc":"2.0","id":1,"method":"initialize"}`
 	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body))
@@ -290,5 +294,197 @@ func TestHTTPEndpoint_ValidRequest(t *testing.T) {
 
 	if resp.Error != nil {
 		t.Errorf("unexpected error: %v", resp.Error.Message)
+	}
+}
+
+// --- Mock StatusManager ---
+
+type mockStatusManager struct {
+	statuses map[string]string
+}
+
+func newMockStatusManager() *mockStatusManager {
+	return &mockStatusManager{statuses: make(map[string]string)}
+}
+
+func (m *mockStatusManager) GetStatus(id string) string {
+	return m.statuses[id]
+}
+
+func (m *mockStatusManager) SetStatus(id, status string) error {
+	allowed := map[string]bool{
+		"Pending": true, "Execute": true, "Active": true,
+		"Blocked": true, "Review": true, "Complete": true, "Error": true,
+	}
+	if !allowed[status] {
+		return fmt.Errorf("invalid status: %s", status)
+	}
+	m.statuses[id] = status
+	return nil
+}
+
+func (m *mockStatusManager) ListStatuses() map[string]string {
+	result := make(map[string]string, len(m.statuses))
+	for k, v := range m.statuses {
+		result[k] = v
+	}
+	return result
+}
+
+func (m *mockStatusManager) AllowedStatuses() []string {
+	return []string{"Pending", "Execute", "Active", "Blocked", "Review", "Complete", "Error"}
+}
+
+// --- Status Tool Tests ---
+
+func TestToolGetStatus(t *testing.T) {
+	sm := newMockStatusManager()
+	sm.statuses["doc123"] = "Active"
+	h := NewHandler(nil, sm, testLogger())
+
+	resp := call(t, h, "tools/call", map[string]interface{}{
+		"name":      "get_status",
+		"arguments": map[string]interface{}{"id": "doc123"},
+	})
+
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %v", resp.Error.Message)
+	}
+
+	result, ok := resp.Result.(ToolResult)
+	if !ok {
+		t.Fatal("result is not a ToolResult")
+	}
+
+	text := result.Content[0].Text
+	if !strings.Contains(text, `"status":"Active"`) {
+		t.Errorf("expected status Active in response, got: %s", text)
+	}
+}
+
+func TestToolGetStatus_DefaultPending(t *testing.T) {
+	sm := newMockStatusManager()
+	h := NewHandler(nil, sm, testLogger())
+
+	resp := call(t, h, "tools/call", map[string]interface{}{
+		"name":      "get_status",
+		"arguments": map[string]interface{}{"id": "unknown-item"},
+	})
+
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %v", resp.Error.Message)
+	}
+
+	result := resp.Result.(ToolResult)
+	if !strings.Contains(result.Content[0].Text, `"status":"Pending"`) {
+		t.Errorf("expected default Pending status, got: %s", result.Content[0].Text)
+	}
+}
+
+func TestToolSetStatus(t *testing.T) {
+	sm := newMockStatusManager()
+	h := NewHandler(nil, sm, testLogger())
+
+	resp := call(t, h, "tools/call", map[string]interface{}{
+		"name":      "set_status",
+		"arguments": map[string]interface{}{"id": "sheet456", "status": "Review"},
+	})
+
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %v", resp.Error.Message)
+	}
+
+	result := resp.Result.(ToolResult)
+	if result.IsError {
+		t.Fatalf("tool returned error: %s", result.Content[0].Text)
+	}
+	if !strings.Contains(result.Content[0].Text, `"ok":true`) {
+		t.Errorf("expected ok:true in response, got: %s", result.Content[0].Text)
+	}
+
+	if sm.statuses["sheet456"] != "Review" {
+		t.Errorf("expected status Review, got: %s", sm.statuses["sheet456"])
+	}
+}
+
+func TestToolSetStatus_InvalidStatus(t *testing.T) {
+	sm := newMockStatusManager()
+	h := NewHandler(nil, sm, testLogger())
+
+	resp := call(t, h, "tools/call", map[string]interface{}{
+		"name":      "set_status",
+		"arguments": map[string]interface{}{"id": "doc123", "status": "InvalidStatus"},
+	})
+
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %v", resp.Error.Message)
+	}
+
+	result := resp.Result.(ToolResult)
+	if !result.IsError {
+		t.Error("expected tool to return an error for invalid status")
+	}
+}
+
+func TestToolSetStatus_MissingParams(t *testing.T) {
+	sm := newMockStatusManager()
+	h := NewHandler(nil, sm, testLogger())
+
+	// Missing id
+	resp := call(t, h, "tools/call", map[string]interface{}{
+		"name":      "set_status",
+		"arguments": map[string]interface{}{"status": "Active"},
+	})
+	result := resp.Result.(ToolResult)
+	if !result.IsError {
+		t.Error("expected error when id is missing")
+	}
+
+	// Missing status
+	resp = call(t, h, "tools/call", map[string]interface{}{
+		"name":      "set_status",
+		"arguments": map[string]interface{}{"id": "doc123"},
+	})
+	result = resp.Result.(ToolResult)
+	if !result.IsError {
+		t.Error("expected error when status is missing")
+	}
+}
+
+func TestToolListStatuses(t *testing.T) {
+	sm := newMockStatusManager()
+	sm.statuses["notes/abc"] = "Execute"
+	sm.statuses["doc123"] = "Complete"
+	h := NewHandler(nil, sm, testLogger())
+
+	resp := call(t, h, "tools/call", map[string]interface{}{
+		"name": "list_statuses",
+	})
+
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %v", resp.Error.Message)
+	}
+
+	result := resp.Result.(ToolResult)
+	text := result.Content[0].Text
+	if !strings.Contains(text, `"total":2`) {
+		t.Errorf("expected total 2 in response, got: %s", text)
+	}
+	if !strings.Contains(text, "allowedStatuses") {
+		t.Errorf("expected allowedStatuses in response, got: %s", text)
+	}
+}
+
+func TestToolStatusWithNilManager(t *testing.T) {
+	h := NewHandler(nil, nil, testLogger())
+
+	resp := call(t, h, "tools/call", map[string]interface{}{
+		"name":      "get_status",
+		"arguments": map[string]interface{}{"id": "doc123"},
+	})
+
+	result := resp.Result.(ToolResult)
+	if !result.IsError {
+		t.Error("expected error when status manager is nil")
 	}
 }
