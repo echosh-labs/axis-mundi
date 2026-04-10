@@ -36,10 +36,12 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="./dist/landing.JJvzOfts.css" xintegrity="sha384-JJvzOftsnD3r6Da2qk/YWOYxM7pLHfK0Y7fB9Bq7XUp4u0t0n5bZpKcj3sE73wiM" crossorigin="anonymous">
+    <link rel="stylesheet" href="./dist/landing.RR_uF-3E.css" xintegrity="sha384-RR/uF+3EwKvMJmCMz4dm8/u5XBqFfOOQsI7a++C5i/oJwyhHqIUGdusTNILaPpr6" crossorigin="anonymous">
 </head>
 
-<body class="min-h-screen bg-charcoal-900 text-slate-100">
+<body class="min-h-screen bg-charcoal-900 text-slate-100 relative">
+    <!-- Animated Buckyball Background -->
+    <div id="bucky-bg" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.25; pointer-events: none;"></div>
     <div class="max-w-6xl mx-auto px-6 py-10 md:py-14">
         <header class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
@@ -64,17 +66,13 @@
         <main class="mt-12 space-y-14">
             <section class="grid gap-10 md:grid-cols-[1.1fr_0.9fr] items-center">
                 <div class="space-y-6">
-                    <p class="text-lg text-slate-200 leading-relaxed">Axis Mundi bridges Google Gemini voice inputs with
-                        Google Workspace actions. Orchestrate notes, docs, sheets, and threads with a terminal-inspired
-                        interface that balances autonomy with manual control.</p>
+                    <p class="text-lg text-slate-200 leading-relaxed">Axis Mundi is a high-performance connectivity bridge designed to ingest, triage, and orchestrate data between personal Google Gemini voice interfaces and professional Google Workspace environments. It leverages Go for backend orchestration and React for a low-latency, keyboard-centric terminal interface (TUI).</p>
                     <div class="flex flex-wrap gap-3">
                         <a class="cta-btn bg-[var(--accent)] text-charcoal-900"
                             href="https://github.com/echosh-labs/axis-mundi" target="_blank" rel="noreferrer">
                             View on GitHub
                             <span aria-hidden="true">↗</span>
                         </a>
-                        <a class="cta-btn bg-sky-600 text-white" href="./bucky-ball/" target="_self"
-                            rel="noopener">Buckyball Viewer</a>
                         <a class="cta-btn bg-purple-700 text-white" href="./mcp/" target="_self"
                             rel="noopener">MCP Server</a>
                         <a class="cta-btn bg-charcoal-800 text-slate-100 border border-[var(--border)]"
@@ -84,13 +82,12 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4 text-sm text-[var(--muted)]">
                         <div class="panel p-4">
-                            <div class="text-emerald-200 font-semibold mb-1">Live/Manual modes</div>
-                            <p>Switch between AUTO (SSE stream) and MANUAL (on-demand refresh + keyboard nav).</p>
+                            <div class="text-emerald-200 font-semibold mb-1">Hybrid Command Center</div>
+                            <p>Toggle between AUTO (background monitoring) and MANUAL (destructive control) modes using keyboard-centric logic.</p>
                         </div>
                         <div class="panel p-4">
-                            <div class="text-amber-200 font-semibold mb-1">Ecosystem integration</div>
-                            <p>Docs, Sheets, Gmail, Keep, Dropbox, and GCP Chat all map back to one unified registry.
-                            </p>
+                            <div class="text-amber-200 font-semibold mb-1">Service Impersonation</div>
+                            <p>GCP Service Accounts with Domain-Wide Delegation bridge personal voice data into professional file structures.</p>
                         </div>
                     </div>
                 </div>
@@ -122,19 +119,16 @@
                 </div>
                 <div class="grid gap-4 md:grid-cols-3 mt-6">
                     <div class="rounded-xl border border-[var(--border)] bg-charcoal-700/60 p-4">
-                        <div class="text-emerald-200 font-semibold mb-2">1 · Capture</div>
-                        <p class="text-sm text-[var(--muted)]">Speak to Gemini; transcripts are normalized into tasks
-                            and routed to the registry.</p>
+                        <div class="text-emerald-200 font-semibold mb-2">1 · Ingest & Detect</div>
+                        <p class="text-sm text-[var(--muted)]">Speak directly to Gemini on mobile; the Keep note payload is detected automatically and queued as 'Pending' in the SQLite registry.</p>
                     </div>
                     <div class="rounded-xl border border-[var(--border)] bg-charcoal-700/60 p-4">
-                        <div class="text-amber-200 font-semibold mb-2">2 · Orchestrate</div>
-                        <p class="text-sm text-[var(--muted)]">Use keyboard-first TUI to filter, inspect, and adjust
-                            statuses across Keep/Docs/Sheets/Gmail.</p>
+                        <div class="text-amber-200 font-semibold mb-2">2 · Triage</div>
+                        <p class="text-sm text-[var(--muted)]">Operators review tasks in the high-speed TUI. An in-memory cache unifies Keep notes, Docs, and Sheets for rapid triage.</p>
                     </div>
                     <div class="rounded-xl border border-[var(--border)] bg-charcoal-700/60 p-4">
-                        <div class="text-sky-200 font-semibold mb-2">3 · Execute</div>
-                        <p class="text-sm text-[var(--muted)]">The instruction pipeline routes payloads to external
-                            agents or updates registry states, keeping a human-in-the-loop when needed.</p>
+                        <div class="text-sky-200 font-semibold mb-2">3 · Execute & Archive</div>
+                        <p class="text-sm text-[var(--muted)]">Status is transitioned to 'Execute' to trigger automation logic (e.g. drafting a Doc), tracked through to 'Complete'.</p>
                     </div>
                 </div>
             </section>
@@ -143,29 +137,20 @@
                 <div class="panel p-6 bg-charcoal-800/70 border border-[var(--border)]">
                     <h2 class="text-lg text-white font-semibold mb-4">Core capabilities</h2>
                     <ul class="space-y-3 text-sm text-[var(--muted)]">
-                        <li class="flex gap-3"><span class="text-emerald-300 mono">⌘</span><span>Unified registry with
-                                keyboard-driven navigation and detail panes.</span></li>
-                        <li class="flex gap-3"><span class="text-emerald-300 mono">⌘</span><span>SSE uplink for live
-                                updates; manual refresh for deterministic runs.</span></li>
-                        <li class="flex gap-3"><span class="text-emerald-300 mono">⌘</span><span>Status cycling for
-                                workspace items with optimistic UI + rollback.</span></li>
-                        <li class="flex gap-3"><span class="text-emerald-300 mono">⌘</span><span>MCP server for remote
-                                agent integration with full status lifecycle control.</span></li>
-                        <li class="flex gap-3"><span class="text-emerald-300 mono">⌘</span><span>Docs/Sheets/Gmail
-                                detail retrieval with graceful error handling.</span></li>
+                        <li class="flex gap-3"><span class="text-emerald-300 mono">⌘</span><span>In-memory <b>RegistryCache</b> combining Keep, Docs, and Sheets objects.</span></li>
+                        <li class="flex gap-3"><span class="text-emerald-300 mono">⌘</span><span><b>Real-Time Telemetry</b> via Server-Sent Events (SSE) for zero-latency monitoring.</span></li>
+                        <li class="flex gap-3"><span class="text-emerald-300 mono">⌘</span><span>Keyboard-centric navigation: <b>[PgUp/PgDn]</b> cycle statuses, <b>[A/M]</b> swap modes.</span></li>
+                        <li class="flex gap-3"><span class="text-emerald-300 mono">⌘</span><span>MCP server for remote agent integration with full status lifecycle control.</span></li>
+                        <li class="flex gap-3"><span class="text-emerald-300 mono">⌘</span><span>Background polling logic ensures cleanup of purged or stale Keep records.</span></li>
                     </ul>
                 </div>
                 <div class="panel p-6 bg-charcoal-800/70 border border-[var(--border)]">
-                    <h2 class="text-lg text-white font-semibold mb-4">Technical stack</h2>
+                    <h2 class="text-lg text-white font-semibold mb-4">Architecture</h2>
                     <div class="grid grid-cols-2 gap-3 text-sm text-[var(--muted)]">
-                        <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">Go backend · REST +
-                            SSE</div>
-                        <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">React frontend ·
-                            Vite/Tailwind</div>
-                        <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">Google Workspace &
-                            Dropbox APIs</div>
-                        <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">SQLite state &
-                            Instruction pipelines</div>
+                        <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">Go backend · Data orchestration</div>
+                        <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">React frontend · Hybrid terminal TUI</div>
+                        <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">Workspace API (Keep, Admin, Drive scopes)</div>
+                        <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">SQLite (axis.db) · Lifecycle state tracking</div>
                     </div>
                 </div>
             </section>
@@ -253,14 +238,14 @@
 
     <script>
         const verticals = [
-            "Voice-primed bidding agent for auctions with last-second execution.",
-            "Voice-parameterized trade executor backed by rules-based risk guards.",
-            "Markdown-coded agent funnel for repository modifications via LLM.",
-            "Voice-prompted media generator/player orchestrated with local tooling.",
-            "Smart greenhouse controller coordinating GPIO for growth cycles.",
-            "Adaptive firewall/SSH posture driven by voice-triggered hardening.",
-            "Multi-step lab automation with timing and temperature sensors.",
-            "Performance cues translated into DMX/servo sequences for stage shows."
+            "Voice-primed task ingestion logging directly to a unified corporate Registry.",
+            "Drafting complex Google Docs asynchronously from raw voice streams.",
+            "Appending rows to live budget Sheets triggered by conversational commands.",
+            "Reviewing Blocked tasks where user intervention via TUI is strictly required.",
+            "Impersonating workspace accounts to route personal notes to team Drive folders.",
+            "Polling Keep on background loops to map stale/deleted states back to SQLite.",
+            "Automated execution pipelines pushing approved 'Execute' items to external Webhooks.",
+            "Orchestrating robust cross-app updates across Drive, Keep and Docs simultaneously."
         ];
 
         const liveRegion = document.getElementById('verticals-live');
@@ -302,6 +287,76 @@
         });
 
         renderVerticals();
+    </script>
+    <script type="module">
+        import * as THREE from 'https://esm.sh/three@0.159.0';
+        
+        const container = document.getElementById('bucky-bg');
+        if (container) {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 6);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 0);
+            container.appendChild(renderer.domElement);
+
+            const group = new THREE.Group();
+            scene.add(group);
+
+            fetch('./bucky-ball/vertices.json')
+                .then(r => {
+                    if (!r.ok) throw new Error('vertices.json not found');
+                    return r.json();
+                })
+                .then(data => {
+                    const vertices = data.vertices;
+                    const edges = data.edges;
+
+                    const pts = new Float32Array(vertices.length * 3);
+                    for (let i = 0; i < vertices.length; i++) {
+                        pts[i*3] = vertices[i][0];
+                        pts[i*3+1] = vertices[i][1];
+                        pts[i*3+2] = vertices[i][2];
+                    }
+                    const geom = new THREE.BufferGeometry();
+                    geom.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+                    
+                    // Style to match theme (emerald/accent colors)
+                    const mat = new THREE.PointsMaterial({ color: 0x34d399, size: 0.08 }); 
+                    group.add(new THREE.Points(geom, mat));
+
+                    const lineMat = new THREE.LineBasicMaterial({ color: 0x475569, transparent: true, opacity: 0.5 });
+                    edges.forEach(e => {
+                        const i = e[0], j = e[1];
+                        const a = new THREE.Vector3(vertices[i][0], vertices[i][1], vertices[i][2]);
+                        const b = new THREE.Vector3(vertices[j][0], vertices[j][1], vertices[j][2]);
+                        const lg = new THREE.BufferGeometry().setFromPoints([a,b]);
+                        group.add(new THREE.Line(lg, lineMat));
+                    });
+
+                    // Initial tiny rotation
+                    group.rotation.x = 0.5;
+                    group.rotation.y = 0.5;
+
+                    animate();
+                })
+                .catch(err => console.error('Error loading buckyball:', err));
+
+            function animate() {
+                requestAnimationFrame(animate);
+                group.rotation.x += 0.0005;
+                group.rotation.y += 0.001;
+                renderer.render(scene, camera);
+            }
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
     </script>
 </body>
 

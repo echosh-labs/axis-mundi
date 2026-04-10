@@ -7,6 +7,7 @@ DIST_DIR="$LANDING_DIR/dist"
 HTML_FILE="$LANDING_DIR/index.html"
 PORT="8888"
 NOBUILD=0
+BUILDONLY=0
 
 # Simple CLI
 while [[ $# -gt 0 ]]; do
@@ -15,11 +16,14 @@ while [[ $# -gt 0 ]]; do
             PORT="$2"; shift 2;;
         --no-build)
             NOBUILD=1; shift;;
+        --build-only)
+            BUILDONLY=1; shift;;
         -h|--help)
             cat <<EOF
-Usage: $(basename "$0") [-p PORT] [--no-build]
-    -p, --port    Port to serve (default: 8888)
-    --no-build    Skip npm install/build steps and just serve existing files
+Usage: $(basename "$0") [-p PORT] [--no-build] [--build-only]
+    -p, --port     Port to serve (default: 8888)
+    --no-build     Skip npm install/build steps and just serve existing files
+    --build-only   Only install/build and update bindings, do not start server
 EOF
             exit 0;;
         *) echo "Unknown arg: $1"; exit 2;;
@@ -57,7 +61,7 @@ if [[ $NOBUILD -eq 0 ]]; then
     else
         HASH=$(sha384sum "$CSS_FILE" | awk '{print $1}' | xxd -r -p | base64)
     fi
-    SHORT_HASH="${HASH:0:8}"
+    SHORT_HASH=$(echo "${HASH:0:8}" | tr '+/' '-_')
     HASHED_CSS="$DIST_DIR/landing.${SHORT_HASH}.css"
 
     # move into place (force overwrite if exists)
@@ -71,13 +75,18 @@ full_hash = sys.argv[3]
 html = html_path.read_text()
 new_href = f'./dist/landing.{short_hash}.css'
 new_integrity = f'sha384-{full_hash}'
-pattern = r'href="\.\/dist\/landing\.[^"]+" integrity="[^"]+"'
-replacement = f'href="{new_href}" integrity="{new_integrity}"'
+pattern = r'href="\.\/dist\/landing\.[a-zA-Z0-9_\-]+\.css" (x?)integrity="[^"]+"'
+replacement = r'href="' + new_href + r'" \1integrity="' + new_integrity + r'"'
 updated = re.sub(pattern, replacement, html)
 if html == updated:
     print("Warning: link tag not updated; pattern not found", file=sys.stderr)
 html_path.write_text(updated)
 PY
+fi
+
+if [[ $BUILDONLY -eq 1 ]]; then
+    echo "Build complete. Exiting (--build-only)."
+    exit 0
 fi
 
 echo "Serving landing/ at http://localhost:${PORT} (Ctrl+C to stop...)"
