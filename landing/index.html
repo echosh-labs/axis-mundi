@@ -36,7 +36,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="./dist/landing.RR_uF-3E.css" xintegrity="sha384-RR/uF+3EwKvMJmCMz4dm8/u5XBqFfOOQsI7a++C5i/oJwyhHqIUGdusTNILaPpr6" crossorigin="anonymous">
+    <link rel="stylesheet" href="./dist/landing.nEvwLp9h.css" xintegrity="sha384-nEvwLp9hiEMTgrkwsFmI6Icu5AEDpsIpDV6CnJ0mpEXJT+CjEAmCkhpr9FzIzZFa" crossorigin="anonymous">
 </head>
 
 <body class="min-h-screen bg-charcoal-900 text-slate-100 relative">
@@ -178,34 +178,43 @@
                 </div>
             </section>
 
-            <section class="panel p-6 bg-charcoal-800/70 border border-[var(--border)]">
-                <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h2 class="text-lg text-white font-semibold">Extensible pipelines</h2>
-                        <p class="text-sm text-[var(--muted)]">Examples of what can be built on top of Axis Mundi's
-                            routing. Updates occur on button press (no auto-scroll) and announce politely.</p>
+            <section class="panel p-6 md:p-7 bg-charcoal-800/80 border border-[var(--border)]">
+                <div>
+                    <h2 class="text-lg text-white font-semibold flex items-center gap-3">
+                        Pipeline potentialities
+                        <span class="tag bg-indigo-500/10 text-indigo-200 text-[10px] uppercase border border-indigo-500/20 px-2 py-0.5">Conceptual</span>
+                    </h2>
+                    <p class="text-sm text-[var(--muted)] mt-1">Axis Mundi handles the routing and UI layer, but the execution logic is entirely up to you. Below are illustrative ideas of powerful workflows that could be built on top of the Axis orchestrator.</p>
+                </div>
+                <div class="mt-6 grid gap-6 md:grid-cols-[1fr_1.2fr]">
+                    <div class="space-y-3" id="pipeline-list">
+                        <!-- Javascript will inject pipeline cards here -->
                     </div>
-                    <div class="flex gap-2" aria-label="Vertical controls">
-                        <button id="prev-vertical"
-                            class="cta-btn bg-charcoal-800 text-slate-100 border border-[var(--border)]"
-                            type="button">Previous</button>
-                        <button id="next-vertical" class="cta-btn bg-[var(--accent)] text-charcoal-900"
-                            type="button">Next</button>
+                    <div class="flex flex-col rounded-xl border border-[var(--border)] bg-charcoal-900 overflow-hidden shadow-2xl relative h-72 md:h-full min-h-[300px]">
+                        <div class="bg-charcoal-800 px-4 py-2.5 border-b border-[var(--border)] flex items-center gap-2">
+                            <div class="flex gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                            </div>
+                            <span class="ml-2 text-[10px] uppercase tracking-wider text-[var(--muted)] mono">orchestrator.exe</span>
+                        </div>
+                        <div id="terminal-window" class="p-5 font-mono text-[13px] leading-relaxed text-emerald-300 flex-1 overflow-y-auto" aria-live="polite">
+                            <!-- Terminal logs injected here -->
+                        </div>
                     </div>
                 </div>
-                <div class="mt-5 grid gap-3 md:grid-cols-2">
-                    <div class="space-y-3">
-                        <div id="verticals-live"
-                            class="rounded-xl border border-[var(--border)] bg-charcoal-700/60 p-4 text-sm text-[var(--muted)]"
-                            aria-live="polite"></div>
-                        <div class="flex gap-2" id="dots"></div>
-                    </div>
-                    <div
-                        class="rounded-xl border border-[var(--border)] bg-charcoal-700/60 p-4 text-sm text-[var(--muted)]">
-                        <p class="text-[11px] uppercase mono text-[var(--muted)] mb-2">Note</p>
-                        <p>These scenarios represent potential external pipelines. Swap in active pipelines or link to
-                            real task runs to keep this page aligned with production.</p>
-                    </div>
+                
+                <div class="mt-8 pt-8 border-t border-[var(--border)] text-center">
+                    <h3 class="text-xl font-semibold text-white">Infinite Automations. One Unified Chassis.</h3>
+                    <p class="text-sm text-[var(--muted)] mt-3 max-w-2xl mx-auto leading-relaxed">
+                        These are just seven scenarios out of infinite possibilities. Whether you're mapping CRM workflows, localizing multimedia, or triggering physical hardware via Webhooks, Axis Mundi gives you the industrial-grade performance required to execute your exact vision securely.
+                    </p>
+                    <a class="inline-flex items-center mt-6 cta-btn bg-[var(--accent)] text-charcoal-900 border border-[var(--accent)] font-semibold shadow-[0_0_20px_rgba(52,211,153,0.15)] hover:shadow-[0_0_30px_rgba(52,211,153,0.35)] px-8 py-2.5 text-sm transition-shadow duration-300" 
+                       href="mailto:justin@echosh-labs.com?subject=Licensing%20Inquiry%20-%20Axis%20Mundi">
+                        Secure a Commercial License
+                        <span aria-hidden="true" class="ml-2 text-lg leading-none">→</span>
+                    </a>
                 </div>
             </section>
 
@@ -237,56 +246,186 @@
     </div>
 
     <script>
-        const verticals = [
-            "Voice-primed task ingestion logging directly to a unified corporate Registry.",
-            "Drafting complex Google Docs asynchronously from raw voice streams.",
-            "Appending rows to live budget Sheets triggered by conversational commands.",
-            "Reviewing Blocked tasks where user intervention via TUI is strictly required.",
-            "Impersonating workspace accounts to route personal notes to team Drive folders.",
-            "Polling Keep on background loops to map stale/deleted states back to SQLite.",
-            "Automated execution pipelines pushing approved 'Execute' items to external Webhooks.",
-            "Orchestrating robust cross-app updates across Drive, Keep and Docs simultaneously."
+        const pipelines = [
+            {
+                id: "docs",
+                title: "Voice-driven Docs Drafting",
+                desc: "Draft complex Google Docs asynchronously from raw voice streams.",
+                icon: "📝",
+                logs: [
+                    "> [INGEST] Discovered new note keep://notes/dictation-0x9",
+                    "> [ROUTER] Trigger detected: 'Draft document about...'",
+                    "> [STATUS] Queueing... SQLite updated to 'Pending'",
+                    "> [STATUS] Agent requested promotion to 'Active'",
+                    "> [AGENT] Transmuting voice intent to structured Markdown...",
+                    "> [API] Pushing schema content via Docs API...",
+                    "> [SUCCESS] Built docs://documents/design-spec-v1",
+                    "> [STATUS] Marked 'Complete'. Task archived."
+                ]
+            },
+            {
+                id: "sheets",
+                title: "Live Ledger Append",
+                desc: "Append rows to budget Sheets triggered by conversational commands.",
+                icon: "📊",
+                logs: [
+                    "> [INGEST] Discovered new note keep://notes/budget-0x2",
+                    "> [ROUTER] Pattern match regex: '$50 for coffee'",
+                    "> [STATUS] Updating UI state to 'Active'",
+                    "> [API] Locating sheets://spreadsheets/ledger-2026",
+                    "> [API] Reading existing payload for Row 45...",
+                    "> [AGENT] Formatting cell variants: (Date, Category, Amount)",
+                    "> [SUCCESS] Write operation committed on Row 46.",
+                    "> [SSE] Broadcasting completion to all TUI dashboard clients."
+                ]
+            },
+            {
+                id: "meeting",
+                title: "Meeting Actions Extractor",
+                desc: "Voice-record transcripts; pipeline extracts actions, assigns owners, and updates tasks.",
+                icon: "👔",
+                logs: [
+                    "> [INGEST] Discovered new note keep://notes/meeting-0x3a",
+                    "> [ROUTER] Trigger: 'Meeting summary for Q3 planning'",
+                    "> [STATUS] Queueing... SQLite updated to 'Pending'",
+                    "> [AGENT] Extracting action items and assigning owners...",
+                    "> [API] Pushing structured minutes to docs://documents/q3-minutes",
+                    "> [API] Writing assigned tasks to sheets://spreadsheets/master-tasks",
+                    "> [SUCCESS] Pipeline execution complete.",
+                    "> [STATUS] Marked 'Complete'. Task archived."
+                ]
+            },
+            {
+                id: "brainstorm",
+                title: "Multi-Format Brainstorm",
+                desc: "Dictate raw ideas. Pipeline routes to Docs for drafted outlines and Slides for visuals.",
+                icon: "🧠",
+                logs: [
+                    "> [INGEST] Discovered new note keep://notes/brainstorm-vx",
+                    "> [ROUTER] Pattern match: Pitch outline detected",
+                    "> [STATUS] Agent requested promotion to 'Active'",
+                    "> [AGENT] Transmuting voice intent to structured outline...",
+                    "> [API] Creating drafting canvas at docs://documents/pitch-draft",
+                    "> [API] Scaffolding presentation at slides://presentations/pitch-deck",
+                    "> [SUCCESS] Multi-format output generated.",
+                    "> [SSE] Broadcasting creation URIs to TUI clients."
+                ]
+            },
+            {
+                id: "travel",
+                title: "Travel Orchestrator",
+                desc: "Voice-brainstorm itineraries to build Docs agendas, Budget sheets, and Calendar blocks.",
+                icon: "✈️",
+                logs: [
+                    "> [INGEST] Discovered new note keep://notes/travel-0x8b",
+                    "> [ROUTER] Trigger detected: 'Trip to Austin next week'",
+                    "> [STATUS] Updating UI state to 'Active'",
+                    "> [AGENT] Parsing dates, flights, and budget constraints...",
+                    "> [API] Building itinerary at docs://documents/austin-trip",
+                    "> [API] Appending ledger entries at sheets://spreadsheets/travel-budget",
+                    "> [API] Scheduling 3 events via Calendar API...",
+                    "> [SUCCESS] Travel orchestration complete."
+                ]
+            },
+            {
+                id: "mcp",
+                title: "MCP Agent Control",
+                desc: "Cloud agents request tools over HTTP to drive workflow updates.",
+                icon: "🤖",
+                logs: [
+                    "> [MCP] Incoming connection on POST /mcp",
+                    "> [MCP] Initializing session protocol 2025-03-26",
+                    "> [MCP] Client 'cursor-agent' authenticated",
+                    "> [MCP] Tool Call: list_workspace -> resolving 12 payloads",
+                    "> [MCP] Tool Call: set_status { id: 'note/review', status: 'Review' }",
+                    "> [DATABASE] Committing status update to axis.db...",
+                    "> [SSE] Broadcast: Request payload moved to Review pane",
+                    "> [MCP] Request lifecycle completed (185ms duration)"
+                ]
+            },
+            {
+                id: "sync",
+                title: "State Reconciliation",
+                desc: "Background loops poll Keep API to map out-of-band deletions.",
+                icon: "🔄",
+                logs: [
+                    "> [POLLED] Initializing routine reconciliation sequence...",
+                    "> [API] Fetching bulk Keep items with target scope parameter...",
+                    "> [DB] Scanning 240 active SQLite tracker rows...",
+                    "> [WARN] Note keep://notes/abandoned-123 missing from upstream",
+                    "> [EVENT] Firing logical purge algorithm on database root index",
+                    "> [SUCCESS] Reconciled. Removed 1 stale registry ghost item.",
+                    "> [METRICS] Reconciliation cycle complete in 0.9s."
+                ]
+            }
         ];
 
-        const liveRegion = document.getElementById('verticals-live');
-        const dots = document.getElementById('dots');
-        const prevBtn = document.getElementById('prev-vertical');
-        const nextBtn = document.getElementById('next-vertical');
-        let index = 0;
+        const pipelineList = document.getElementById('pipeline-list');
+        const terminalWindow = document.getElementById('terminal-window');
+        let activeId = "docs";
+        let typeTimeout;
 
-        function renderDots() {
-            dots.innerHTML = '';
-            verticals.forEach((_, i) => {
-                const dot = document.createElement('button');
-                dot.type = 'button';
-                dot.className = `h-2.5 w-2.5 rounded-full border border-[var(--border)] ${i === index ? 'bg-[var(--accent)]' : 'bg-charcoal-900'}`;
-                dot.setAttribute('aria-label', `Show scenario ${i + 1}`);
-                dot.addEventListener('click', () => { index = i; renderVerticals(); });
-                dots.appendChild(dot);
+        function renderPipelines() {
+            pipelineList.innerHTML = '';
+            pipelines.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left p-4 rounded-xl border transition-all flex items-start gap-4 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] ${p.id === activeId ? 'bg-charcoal-700/80 border-emerald-400/50 shadow-[0_0_15px_rgba(52,211,153,0.1)] translate-x-1' : 'bg-charcoal-800/50 border-[var(--border)] hover:bg-charcoal-700/60 hover:translate-x-0.5'}`;
+                btn.onclick = () => {
+                    if (activeId !== p.id) {
+                        activeId = p.id;
+                        renderPipelines();
+                        startTerminal(p);
+                    }
+                };
+                
+                btn.innerHTML = `
+                    <div class="text-2xl mt-1 opacity-90 drop-shadow-md">${p.icon}</div>
+                    <div>
+                        <div class="font-semibold text-slate-100 text-[14px] leading-snug">${p.title}</div>
+                        <div class="text-[13px] text-[var(--muted)] leading-snug mt-1">${p.desc}</div>
+                    </div>
+                `;
+                pipelineList.appendChild(btn);
             });
         }
 
-        function renderVerticals() {
-            const items = [];
-            for (let i = 0; i < 3; i++) {
-                const idx = (index + i) % verticals.length;
-                items.push(`<li class="mb-2">${idx + 1}. ${verticals[idx]}</li>`);
+        function startTerminal(pipeline) {
+            clearTimeout(typeTimeout);
+            terminalWindow.innerHTML = '';
+            const logs = pipeline.logs;
+            let currentLog = 0;
+
+            function nextLine() {
+                if (currentLog < logs.length) {
+                    const line = document.createElement('div');
+                    line.className = 'opacity-0 translate-y-2 blur-[2px] transition-all duration-[250ms] ease-out mb-1';
+                    line.textContent = logs[currentLog];
+                    terminalWindow.appendChild(line);
+                    
+                    // Trigger reflow
+                    void line.offsetWidth;
+                    
+                    line.classList.remove('opacity-0', 'translate-y-2', 'blur-[2px]');
+                    terminalWindow.scrollTop = terminalWindow.scrollHeight;
+                    
+                    currentLog++;
+                    const delay = Math.random() * 400 + 200;
+                    typeTimeout = setTimeout(nextLine, delay);
+                } else {
+                    const cursor = document.createElement('div');
+                    cursor.className = 'animate-pulse inline-block w-2.5 h-3.5 bg-emerald-400 mt-1 shadow-glow';
+                    terminalWindow.appendChild(cursor);
+                    terminalWindow.scrollTop = terminalWindow.scrollHeight;
+                }
             }
-            liveRegion.innerHTML = `<ul class="list-disc list-inside space-y-1">${items.join('')}</ul>`;
-            renderDots();
+            
+            typeTimeout = setTimeout(nextLine, 150);
         }
 
-        prevBtn.addEventListener('click', () => {
-            index = (index - 1 + verticals.length) % verticals.length;
-            renderVerticals();
-        });
-
-        nextBtn.addEventListener('click', () => {
-            index = (index + 1) % verticals.length;
-            renderVerticals();
-        });
-
-        renderVerticals();
+        if (pipelineList && terminalWindow) {
+            renderPipelines();
+            startTerminal(pipelines[0]);
+        }
     </script>
     <script type="module">
         import * as THREE from 'https://esm.sh/three@0.159.0';
