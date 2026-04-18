@@ -38,3 +38,4 @@ web/dist/
 deploy.sh
 test.sh
 axis.state.json
+deploy-cloudrun.sh

@@ -1,0 +1,10 @@
+.git
+.vscode
+node_modules
+web/node_modules
+web/dist
+axis
+axis.db
+*.db
+.env
+.service-account.json

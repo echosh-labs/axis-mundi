@@ -894,7 +894,8 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		s.clientsMu.Lock()
 		delete(s.clients, msgChan)
 		s.clientsMu.Unlock()
-		close(msgChan)
+		// We purposefully do not close(msgChan) here to prevent "panic: send on closed channel"
+		// if sendInitialRegistrySnapshot is still running. The channel will be safely GC'd.
 	}()
 
 	go s.sendInitialRegistrySnapshot(msgChan)
