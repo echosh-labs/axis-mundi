@@ -56,7 +56,7 @@ This project is dual-licensed. Use of this software is governed by the AGPL-3.0 
 
 * Node.js 18+
 
-* GCP Service Account with Domain-Wide Delegation for Keep, Admin Directory, Docs, Sheets, and Drive.
+* GCP Service Account with Domain-Wide Delegation for Keep, Admin Directory, Docs, Sheets, Drive, and Calendar.
 
 ## Environment
 
@@ -70,12 +70,13 @@ Axis Mundi includes a built-in [Model Context Protocol](https://modelcontextprot
 
 Once connected, an agent can:
 
-* **Browse everything** — List all your Keep notes, Google Docs, Sheets, and Gmail threads in one unified view using the `list_workspace` tool.
+* **Browse everything** — List all your Keep notes, Google Docs, Sheets, Gmail threads, and Calendar events in one unified view using the `list_workspace` tool.
 * **Read Keep notes** — Pull the full content of any note, including checklists with checked/unchecked state.
 * **Search notes** — Find Keep notes by keyword across titles and content.
 * **Read Google Docs** — Retrieve the plain text body of any document.
 * **Read Google Sheets** — Pull cell data from any spreadsheet, with support for custom ranges.
 * **Read Gmail threads** — Get complete email conversations including all messages, headers, and attachments.
+* **Read Calendar events** — Fetch full event details including descriptions and timestamps from Google Calendar.
 
 ### Connecting
 

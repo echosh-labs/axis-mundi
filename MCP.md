@@ -1,6 +1,6 @@
 # Axis Mundi MCP Server
 
-Model Context Protocol (MCP) server for exposing Google Workspace items (Keep, Docs, Sheets, Gmail) and their workflow statuses to cloud code agents. Runs as an integrated endpoint within Axis Mundi.
+Model Context Protocol (MCP) server for exposing Google Workspace items (Keep, Docs, Sheets, Gmail, Calendar) and their workflow statuses to cloud code agents. Runs as an integrated endpoint within Axis Mundi.
 
 ## Setup
 
@@ -98,6 +98,7 @@ Lists all workspace items as MCP resources. Each item gets a typed URI:
 - Google Docs: `docs://documents/{id}`
 - Google Sheets: `sheets://spreadsheets/{id}`
 - Gmail threads: `gmail://threads/{id}`
+- Calendar events: `calendar://events/{id}`
 
 Resource descriptions include the current workflow status (e.g. `[Active] snippet text`).
 
@@ -169,7 +170,7 @@ Response:
 
 ## MCP Tools
 
-Ten tools are available via `tools/list` and `tools/call`.
+Eleven tools are available via `tools/list` and `tools/call`.
 
 ### Keep Tools
 
@@ -234,7 +235,7 @@ Response (wrapped in tool result content block):
 }
 ```
 
-### Docs, Sheets & Gmail Tools
+### Docs, Sheets, Gmail & Calendar Tools
 
 #### get_doc
 
@@ -284,11 +285,27 @@ curl -X POST http://localhost:8080/mcp \
   }'
 ```
 
+#### get_calendar_event
+
+Retrieves the details and description of a Google Calendar event.
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-key-here" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": { "name": "get_calendar_event", "arguments": { "eventId": "event123" } }
+  }'
+```
+
 ### Registry Tool
 
 #### list_workspace
 
-Lists all items across Keep, Docs, Sheets, and Gmail with their current workflow status.
+Lists all items across Keep, Docs, Sheets, Gmail, and Calendar with their current workflow status.
 
 ```bash
 curl -X POST http://localhost:8080/mcp \
@@ -458,7 +475,7 @@ Any MCP-compatible client can connect via:
 ## Architecture
 
 ```
-Cloud Agent → POST /mcp → MCP Server → Workspace Service → Google APIs (Keep, Docs, Sheets, Gmail)
+Cloud Agent → POST /mcp → MCP Server → Workspace Service → Google APIs (Keep, Docs, Sheets, Gmail, Calendar)
                   ↑            ↓                ↑
            Bearer auth   StatusManager   Domain-wide delegation
            (MCP_API_KEY)  (get/set/list)  (service account impersonation)
