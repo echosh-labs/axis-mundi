@@ -22,7 +22,7 @@
     <meta property="og:type" content="website">
     <meta property="og:title" content="MCP Server | Axis Mundi">
     <meta property="og:description"
-        content="Model Context Protocol server for Google Workspace orchestration — Keep, Docs, Sheets, Gmail, and workflow statuses.">
+        content="Model Context Protocol server for Google Workspace orchestration — Keep, Docs, Sheets, Gmail, Calendar, and workflow statuses.">
     <meta property="og:url" content="https://echosh-labs.com/axis-mundi/mcp">
     <meta property="og:image" content="https://echosh-labs.com/axis-mundi/og.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,7 +30,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="../dist/landing.JJvzOfts.css" xintegrity="sha384-JJvzOftsnD3r6Da2qk/YWOYxM7pLHfK0Y7fB9Bq7XUp4u0t0n5bZpKcj3sE73wiM" crossorigin="anonymous">
+    <link rel="stylesheet" href="../dist/landing.nEvwLp9h.css" xintegrity="sha384-nEvwLp9hiEMTgrkwsFmI6Icu5AEDpsIpDV6CnJ0mpEXJT+CjEAmCkhpr9FzIzZFa" crossorigin="anonymous">
 </head>
 
 <body class="min-h-screen bg-charcoal-900 text-slate-100">
@@ -59,7 +59,7 @@
             <section class="grid gap-10 md:grid-cols-[1.1fr_0.9fr] items-start">
                 <div class="space-y-6">
                     <p class="text-lg text-slate-200 leading-relaxed">
-                        Axis Mundi exposes its full workspace registry — Google Keep, Docs, Sheets, and Gmail — plus
+                        Axis Mundi exposes its full workspace registry — Google Keep, Docs, Sheets, Gmail, and Calendar — plus
                         a seven-state workflow lifecycle to any MCP-compatible agent. Remote agents can read content,
                         query statuses, and drive items through the pipeline in real time.
                     </p>
@@ -127,7 +127,7 @@ APIs      SSE → TUI</pre>
             <section>
                 <div class="mb-6">
                     <h2 class="text-sm uppercase tracking-[0.12em] text-[var(--muted)]">MCP Tools</h2>
-                    <p class="text-lg text-white mt-1">Ten tools across four domains.</p>
+                    <p class="text-lg text-white mt-1">Eleven tools across four domains.</p>
                 </div>
                 <div class="grid gap-4 md:grid-cols-2">
 
@@ -156,8 +156,8 @@ APIs      SSE → TUI</pre>
                     <!-- Workspace Tools -->
                     <div class="panel p-5 bg-charcoal-800/70 border border-[var(--border)]">
                         <div class="flex items-center gap-2 mb-4">
-                            <span class="tag bg-sky-500/15 text-sky-200">Docs · Sheets · Gmail</span>
-                            <span class="text-sm text-[var(--muted)]">3 tools</span>
+                            <span class="tag bg-sky-500/15 text-sky-200">Docs · Sheets · Gmail · Calendar</span>
+                            <span class="text-sm text-[var(--muted)]">4 tools</span>
                         </div>
                         <div class="space-y-3 text-sm">
                             <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">
@@ -171,6 +171,10 @@ APIs      SSE → TUI</pre>
                             <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">
                                 <div class="mono text-emerald-200 text-xs mb-1">get_gmail_thread</div>
                                 <p class="text-[var(--muted)]">Retrieve the full conversation content of a Gmail thread.</p>
+                            </div>
+                            <div class="rounded-lg bg-charcoal-700/60 border border-[var(--border)] p-3">
+                                <div class="mono text-emerald-200 text-xs mb-1">get_calendar_event</div>
+                                <p class="text-[var(--muted)]">Retrieve the details and description of a Google Calendar event.</p>
                             </div>
                         </div>
                     </div>
@@ -272,6 +276,7 @@ APIs      SSE → TUI</pre>
                                 <tr class="border-t border-[var(--border)]"><td class="py-2 text-blue-200">Docs</td><td class="py-2">docs://documents/{id}</td></tr>
                                 <tr class="border-t border-[var(--border)]"><td class="py-2 text-emerald-200">Sheets</td><td class="py-2">sheets://spreadsheets/{id}</td></tr>
                                 <tr class="border-t border-[var(--border)]"><td class="py-2 text-slate-200">Gmail</td><td class="py-2">gmail://threads/{id}</td></tr>
+                                <tr class="border-t border-[var(--border)]"><td class="py-2 text-red-200">Calendar</td><td class="py-2">calendar://events/{id}</td></tr>
                             </tbody>
                         </table>
                     </div>

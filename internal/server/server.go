@@ -205,6 +205,8 @@ func (s *Server) Start(port string) error {
 	mux.HandleFunc("/api/docs/delete", s.handleDeleteDoc)
 	mux.HandleFunc("/api/gmail/detail", s.handleGetGmailThread)
 	mux.HandleFunc("/api/gmail/delete", s.handleDeleteGmailThread)
+	mux.HandleFunc("/api/calendar/detail", s.handleGetCalendarEvent)
+	mux.HandleFunc("/api/calendar/delete", s.handleDeleteCalendarEvent)
 	mux.HandleFunc("/api/registry", s.handleRegistry)
 	mux.HandleFunc("/api/status", s.handleStatus)
 	// Google Chat Webhook
@@ -950,6 +952,53 @@ func (s *Server) handleDeleteGmailThread(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := s.ws.TrashGmailThread(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if s.isManualMode() {
+		s.refreshRegistryCache()
+		s.broadcastRegistry()
+	} else {
+		go s.refreshAndBroadcast()
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleGetCalendarEvent(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	event, err := s.ws.GetCalendarEvent(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"title":       "Calendar Event",
+		"eventId":     event.Id,
+		"description": event.Description,
+		"raw":         event,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) handleDeleteCalendarEvent(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.ws.DeleteCalendarEvent(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

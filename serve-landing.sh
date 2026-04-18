@@ -69,18 +69,26 @@ if [[ $NOBUILD -eq 0 ]]; then
 
     python3 - "$HTML_FILE" "$SHORT_HASH" "$HASH" <<'PY'
 import sys, re, pathlib
-html_path = pathlib.Path(sys.argv[1])
+html_paths = [pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[1]).parent / 'mcp' / 'index.html']
 short_hash = sys.argv[2]
 full_hash = sys.argv[3]
-html = html_path.read_text()
-new_href = f'./dist/landing.{short_hash}.css'
-new_integrity = f'sha384-{full_hash}'
-pattern = r'href="\.\/dist\/landing\.[a-zA-Z0-9_\-]+\.css" (x?)integrity="[^"]+"'
-replacement = r'href="' + new_href + r'" \1integrity="' + new_integrity + r'"'
-updated = re.sub(pattern, replacement, html)
-if html == updated:
-    print("Warning: link tag not updated; pattern not found", file=sys.stderr)
-html_path.write_text(updated)
+pattern = r'href="([^"]*\/)landing\.[a-zA-Z0-9_\-]+\.css" (x?)integrity="[^"]+"'
+
+for html_path in html_paths:
+    if not html_path.exists(): continue
+    html = html_path.read_text()
+    
+    def replacer(m):
+        prefix = m.group(1)
+        x_int = m.group(2)
+        new_href = f"{prefix}landing.{short_hash}.css"
+        new_integrity = f"sha384-{full_hash}"
+        return f'href="{new_href}" {x_int}integrity="{new_integrity}"'
+        
+    updated = re.sub(pattern, replacer, html)
+    if html == updated:
+        print(f"Warning: link tag not updated in {html_path.name}; pattern not found", file=sys.stderr)
+    html_path.write_text(updated)
 PY
 fi
 

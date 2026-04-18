@@ -228,6 +228,7 @@ const App = () => {
             case 'doc': return 'border-blue-600/70 text-blue-400';
             case 'sheet': return 'border-emerald-600/70 text-emerald-400';
             case 'gmail': return 'border-gray-500 text-gray-300';
+            case 'calendar': return 'border-red-600/70 text-red-400';
 
             case 'Pending': return 'bg-yellow-900/30 text-yellow-300';
             case 'Execute': return 'bg-purple-900/30 text-purple-300';
@@ -276,7 +277,8 @@ const App = () => {
                             isDoc={visibleRegistry[selectedIndex]?.type === 'doc'}
                             isSheet={visibleRegistry[selectedIndex]?.type === 'sheet'}
                             isGmail={visibleRegistry[selectedIndex]?.type === 'gmail'}
-                            detailContent={visibleRegistry[selectedIndex]?.type === 'keep' ? formatNoteContent.fromNote(detailItem) : (visibleRegistry[selectedIndex]?.type === 'doc' || visibleRegistry[selectedIndex]?.type === 'gmail') ? detailItem?.content : null}
+                            isCalendar={visibleRegistry[selectedIndex]?.type === 'calendar'}
+                            detailContent={visibleRegistry[selectedIndex]?.type === 'keep' ? formatNoteContent.fromNote(detailItem) : (visibleRegistry[selectedIndex]?.type === 'doc' || visibleRegistry[selectedIndex]?.type === 'gmail') ? detailItem?.content : visibleRegistry[selectedIndex]?.type === 'calendar' ? detailItem?.description : null}
                             sheetValues={visibleRegistry[selectedIndex]?.type === 'sheet' ? detailItem?.values : null}
                             detailItem={detailItem}
                             detailLoading={detailLoading}

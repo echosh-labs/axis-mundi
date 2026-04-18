@@ -139,11 +139,12 @@ func TestToolsList(t *testing.T) {
 		"list_notes":       false,
 		"get_doc":          false,
 		"get_sheet":        false,
-		"get_gmail_thread": false,
-		"list_workspace":   false,
-		"get_status":       false,
-		"set_status":       false,
-		"list_statuses":    false,
+		"get_gmail_thread":   false,
+		"get_calendar_event": false,
+		"list_workspace":     false,
+		"get_status":         false,
+		"set_status":         false,
+		"list_statuses":      false,
 	}
 
 	for _, tool := range tools {
@@ -192,6 +193,7 @@ func TestResourceURIAndMime(t *testing.T) {
 		{workspace.RegistryItem{ID: "doc123", Type: "doc"}, "docs://documents/doc123"},
 		{workspace.RegistryItem{ID: "sheet456", Type: "sheet"}, "sheets://spreadsheets/sheet456"},
 		{workspace.RegistryItem{ID: "thread789", Type: "gmail"}, "gmail://threads/thread789"},
+		{workspace.RegistryItem{ID: "event000", Type: "calendar"}, "calendar://events/event000"},
 	}
 
 	for _, tt := range tests {

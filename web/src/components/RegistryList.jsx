@@ -12,6 +12,7 @@ const RegistryList = ({ registry, selectedIndex, mode, registryRef, getTagStyles
                 else if (item.type === 'doc') activeClass = 'bg-blue-950/30 border-blue-500 text-blue-300';
                 else if (item.type === 'sheet') activeClass = 'bg-emerald-950/30 border-emerald-500 text-emerald-300';
                 else if (item.type === 'gmail') activeClass = 'bg-gray-800/30 border-gray-400 text-gray-200';
+                else if (item.type === 'calendar') activeClass = 'bg-red-950/30 border-red-500 text-red-300';
             }
 
             return (

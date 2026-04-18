@@ -13,8 +13,10 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	admin "google.golang.org/api/admin/directory/v1"
+	calendar "google.golang.org/api/calendar/v3"
 	chat "google.golang.org/api/chat/v1"
 	docs "google.golang.org/api/docs/v1"
 	drive "google.golang.org/api/drive/v3"
@@ -32,6 +34,7 @@ type Service struct {
 	sheetsService *sheets.Service
 	driveService  *drive.Service
 	gmailService  *gmail.Service
+	calendarService *calendar.Service
 	chatUserSvc   *chat.Service
 	chatBotSvc    *chat.Service
 }
@@ -60,6 +63,7 @@ func NewService(
 	sheetsSvc *sheets.Service,
 	driveSvc *drive.Service,
 	gmailSvc *gmail.Service,
+	calendarSvc *calendar.Service,
 	chatUserSvc *chat.Service,
 	chatBotSvc *chat.Service,
 ) *Service {
@@ -70,6 +74,7 @@ func NewService(
 		sheetsService: sheetsSvc,
 		driveService:  driveSvc,
 		gmailService:  gmailSvc,
+		calendarService: calendarSvc,
 		chatUserSvc:   chatUserSvc,
 		chatBotSvc:    chatBotSvc,
 	}
@@ -191,6 +196,28 @@ func (s *Service) ListRegistryItems() ([]RegistryItem, error) {
 			}(thread)
 		}
 		wg.Wait()
+	}
+
+	// 5. Fetch Calendar Events
+	if s.calendarService != nil {
+		events, err := s.calendarService.Events.List("primary").
+			TimeMin(time.Now().Format(time.RFC3339)).
+			MaxResults(50).
+			SingleEvents(true).
+			OrderBy("startTime").Do()
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to list calendar events: %w", err)
+		}
+
+		for _, item := range events.Items {
+			items = append(items, RegistryItem{
+				ID:      item.Id,
+				Type:    "calendar",
+				Title:   item.Summary,
+				Snippet: "Calendar Event",
+			})
+		}
 	}
 
 	return items, nil
@@ -422,7 +449,23 @@ func stripHTML(htmlStr string) string {
 			text.WriteRune(char)
 		}
 	}
-	// collapse multiple spaces and newlines
-	res := strings.TrimSpace(text.String())
-	return res
+	return strings.TrimSpace(text.String())
+}
+
+// GetCalendarEvent retrieves a Google Calendar event by its ID
+func (s *Service) GetCalendarEvent(eventId string) (*calendar.Event, error) {
+	event, err := s.calendarService.Events.Get("primary", eventId).Do()
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve calendar event %s: %w", eventId, err)
+	}
+	return event, nil
+}
+
+// DeleteCalendarEvent deletes a Google Calendar event by its ID
+func (s *Service) DeleteCalendarEvent(eventId string) error {
+	err := s.calendarService.Events.Delete("primary", eventId).Do()
+	if err != nil {
+		return fmt.Errorf("unable to delete calendar event %s: %w", eventId, err)
+	}
+	return nil
 }

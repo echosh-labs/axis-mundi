@@ -25,9 +25,10 @@ import (
 const (
 	keepURIPrefix   = "keep://notes/"
 	docsURIPrefix   = "docs://documents/"
-	sheetsURIPrefix = "sheets://spreadsheets/"
-	gmailURIPrefix  = "gmail://threads/"
-	mcpServerName   = "axis-mundi"
+	sheetsURIPrefix   = "sheets://spreadsheets/"
+	gmailURIPrefix    = "gmail://threads/"
+	calendarURIPrefix = "calendar://events/"
+	mcpServerName     = "axis-mundi"
 	mcpVersion      = "0.1.0"
 )
 
@@ -189,6 +190,13 @@ func (h *Handler) handleResourcesRead(ctx context.Context, req Request) *Respons
 		} else {
 			content, readErr = h.readGmailThread(threadID)
 		}
+	case strings.HasPrefix(params.URI, calendarURIPrefix):
+		eventID := strings.TrimPrefix(params.URI, calendarURIPrefix)
+		if eventID == "" {
+			readErr = fmt.Errorf("empty event ID")
+		} else {
+			content, readErr = h.readCalendarEvent(eventID)
+		}
 	default:
 		return &Response{
 			JSONRPC: "2.0",
@@ -310,6 +318,21 @@ func (h *Handler) handleToolsList(req Request) *Response {
 				"required": []string{"threadId"},
 			},
 		},
+		// Calendar tools
+		{
+			Name:        "get_calendar_event",
+			Description: "Retrieve the details and description of a Google Calendar event by ID.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"eventId": map[string]interface{}{
+						"type":        "string",
+						"description": "The Google Calendar event ID",
+					},
+				},
+				"required": []string{"eventId"},
+			},
+		},
 		// Registry tool
 		{
 			Name:        "list_workspace",
@@ -394,6 +417,8 @@ func (h *Handler) handleToolsCall(ctx context.Context, req Request) *Response {
 		return h.toolGetSheet(req.ID, params.Arguments)
 	case "get_gmail_thread":
 		return h.toolGetGmailThread(req.ID, params.Arguments)
+	case "get_calendar_event":
+		return h.toolGetCalendarEvent(req.ID, params.Arguments)
 	case "list_workspace":
 		return h.toolListWorkspace(req.ID)
 	case "get_status":
@@ -569,6 +594,27 @@ func (h *Handler) toolGetGmailThread(id interface{}, args map[string]interface{}
 	if err != nil {
 		h.logger.Error("mcp: get_gmail_thread failed", "threadId", threadID, "error", err)
 		return toolError(id, "failed to retrieve gmail thread")
+	}
+
+	return &Response{
+		JSONRPC: "2.0",
+		ID:      id,
+		Result: ToolResult{
+			Content: []ContentBlock{{Type: "text", Text: content}},
+		},
+	}
+}
+
+func (h *Handler) toolGetCalendarEvent(id interface{}, args map[string]interface{}) *Response {
+	eventID, _ := args["eventId"].(string)
+	if eventID == "" {
+		return toolError(id, "eventId parameter is required")
+	}
+
+	content, err := h.readCalendarEvent(eventID)
+	if err != nil {
+		h.logger.Error("mcp: get_calendar_event failed", "eventId", eventID, "error", err)
+		return toolError(id, "failed to retrieve calendar event")
 	}
 
 	return &Response{
@@ -781,6 +827,34 @@ func (h *Handler) readGmailThread(threadID string) (string, error) {
 	return workspace.ExtractThreadContent(thread), nil
 }
 
+func (h *Handler) readCalendarEvent(eventID string) (string, error) {
+	event, err := h.ws.GetCalendarEvent(eventID)
+	if err != nil {
+		return "", err
+	}
+	
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("Event: %s\n", event.Summary))
+	if event.Start != nil && event.Start.DateTime != "" {
+		b.WriteString(fmt.Sprintf("Start: %s\n", event.Start.DateTime))
+	}
+	if event.End != nil && event.End.DateTime != "" {
+		b.WriteString(fmt.Sprintf("End: %s\n", event.End.DateTime))
+	}
+	if event.Location != "" {
+		b.WriteString(fmt.Sprintf("Location: %s\n", event.Location))
+	}
+	b.WriteString("\nDescription:\n")
+	if event.Description != "" {
+		b.WriteString(event.Description)
+	} else {
+		b.WriteString("[No description]")
+	}
+	b.WriteString("\n")
+
+	return b.String(), nil
+}
+
 // --- Helpers ---
 
 func resourceURIAndMime(item workspace.RegistryItem) (string, string) {
@@ -793,6 +867,8 @@ func resourceURIAndMime(item workspace.RegistryItem) (string, string) {
 		return sheetsURIPrefix + item.ID, "text/plain"
 	case "gmail":
 		return gmailURIPrefix + item.ID, "text/plain"
+	case "calendar":
+		return calendarURIPrefix + item.ID, "text/plain"
 	default:
 		return "axis://" + item.Type + "/" + item.ID, "text/plain"
 	}

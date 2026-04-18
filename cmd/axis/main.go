@@ -19,6 +19,7 @@ import (
 
 	"github.com/joho/godotenv"
 	admin "google.golang.org/api/admin/directory/v1"
+	calendar "google.golang.org/api/calendar/v3"
 	chat "google.golang.org/api/chat/v1"
 	docs "google.golang.org/api/docs/v1"
 	drive "google.golang.org/api/drive/v3"
@@ -55,6 +56,7 @@ func main() {
 		Subject:         adminEmail,
 		Scopes: []string{
 			admin.AdminDirectoryUserReadonlyScope,
+			calendar.CalendarEventsScope,
 			keep.KeepScope,
 			docs.DocumentsScope,
 			sheets.SpreadsheetsScope,
@@ -112,6 +114,11 @@ func main() {
 		log.Fatalf("Failed to create Gmail service: %v", err)
 	}
 
+	calendarSvc, err := calendar.NewService(ctx, option.WithTokenSource(ts))
+	if err != nil {
+		log.Fatalf("Failed to create Calendar service: %v", err)
+	}
+
 	chatUserSvc, err := chat.NewService(ctx, option.WithTokenSource(ts))
 	if err != nil {
 		log.Fatalf("Failed to create Chat User service: %v", err)
@@ -123,7 +130,7 @@ func main() {
 	}
 
 	// 5. Initialize internal workspace wrapper
-	ws := workspace.NewService(adminSvc, keepSvc, docsSvc, sheetsSvc, driveSvc, gmailSvc, chatUserSvc, chatBotSvc)
+	ws := workspace.NewService(adminSvc, keepSvc, docsSvc, sheetsSvc, driveSvc, gmailSvc, calendarSvc, chatUserSvc, chatBotSvc)
 
 	// 6. Verification check
 	user, err := ws.GetUser(userEmail)

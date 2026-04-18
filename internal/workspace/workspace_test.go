@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	admin "google.golang.org/api/admin/directory/v1"
+	calendar "google.golang.org/api/calendar/v3"
 	chat "google.golang.org/api/chat/v1"
 	docs "google.golang.org/api/docs/v1"
 	drive "google.golang.org/api/drive/v3"
@@ -31,10 +32,11 @@ func TestNewService(t *testing.T) {
 	sheetsSvc := &sheets.Service{}
 	driveSvc := &drive.Service{}
 	gmailSvc := &gmail.Service{}
+	calendarSvc := &calendar.Service{}
 	chatUserSvc := &chat.Service{}
 	chatBotSvc := &chat.Service{}
 
-	ws := NewService(adminSvc, keepSvc, docsSvc, sheetsSvc, driveSvc, gmailSvc, chatUserSvc, chatBotSvc)
+	ws := NewService(adminSvc, keepSvc, docsSvc, sheetsSvc, driveSvc, gmailSvc, calendarSvc, chatUserSvc, chatBotSvc)
 
 	if ws.adminService != adminSvc {
 		t.Error("Admin service not correctly assigned")
@@ -54,6 +56,9 @@ func TestNewService(t *testing.T) {
 	if ws.gmailService != gmailSvc {
 		t.Error("Gmail service not correctly assigned")
 	}
+	if ws.calendarService != calendarSvc {
+		t.Error("Calendar service not correctly assigned")
+	}
 	if ws.chatUserSvc != chatUserSvc {
 		t.Error("Chat user service not correctly assigned")
 	}
@@ -67,6 +72,11 @@ func TestListRegistryItems(t *testing.T) {
 		if r.URL.Path == "/v1/notes" {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"notes": [{"name": "notes/1", "title": "Test Note", "trashed": false}]}`))
+			return
+		}
+		if r.URL.Path == "/calendar/v3/calendars/primary/events" || r.URL.Path == "/calendars/primary/events" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"items": [{"id": "event1", "summary": "Test Event"}]}`))
 			return
 		}
 		// Drive API requests (Docs, Sheets) return empty to isolate list keep registry item count.
@@ -86,17 +96,41 @@ func TestListRegistryItems(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ws := NewService(nil, keepSvc, nil, nil, driveSvc, nil, nil, nil)
+	calendarSvc, err := calendar.NewService(ctx, option.WithEndpoint(ts.URL), option.WithoutAuthentication())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ws := NewService(nil, keepSvc, nil, nil, driveSvc, nil, calendarSvc, nil, nil)
 	items, err := ws.ListRegistryItems()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(items) != 1 {
-		t.Fatalf("expected 1 item, got %d", len(items))
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
 	}
-	if items[0].Title != "Test Note" {
-		t.Errorf("expected title 'Test Note', got '%s'", items[0].Title)
+	
+	// Check Keep Note presence
+	foundNote := false
+	for _, item := range items {
+		if item.Title == "Test Note" && item.Type == "keep" {
+			foundNote = true
+		}
+	}
+	if !foundNote {
+		t.Errorf("expected Keep Note 'Test Note' to be present")
+	}
+
+	// Check Calendar Event presence
+	foundEvent := false
+	for _, item := range items {
+		if item.Title == "Test Event" && item.Type == "calendar" {
+			foundEvent = true
+		}
+	}
+	if !foundEvent {
+		t.Errorf("expected Calendar Event 'Test Event' to be present")
 	}
 }
 

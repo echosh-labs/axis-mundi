@@ -51,6 +51,7 @@ export function useHotkeys(options) {
                 if (key === 'd') { onChangeViewType('doc'); return; }
                 if (key === 'g') { onChangeViewType('gmail'); return; }
                 if (key === 's') { onChangeViewType('sheet'); return; }
+                if (key === 'c') { onChangeViewType('calendar'); return; }
                 if (key === 'v') { onChangeViewType('all'); return; }
             }
 

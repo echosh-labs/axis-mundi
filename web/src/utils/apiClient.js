@@ -62,6 +62,9 @@ export async function getDetail(item) {
         case 'gmail':
             url = `/api/gmail/detail?id=${encodeURIComponent(item.id)}`;
             break;
+        case 'calendar':
+            url = `/api/calendar/detail?id=${encodeURIComponent(item.id)}`;
+            break;
         default:
             throw new Error(`Unknown item type: ${item.type}`);
     }
@@ -83,6 +86,9 @@ export async function deleteResource(item) {
             break;
         case 'gmail':
             url = `/api/gmail/delete?id=${encodeURIComponent(item.id)}`;
+            break;
+        case 'calendar':
+            url = `/api/calendar/delete?id=${encodeURIComponent(item.id)}`;
             break;
         default:
             throw new Error(`Unknown item type for deletion: ${item?.type || 'unknown'}`);

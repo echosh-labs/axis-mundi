@@ -8,6 +8,7 @@ const DetailPanel = ({
     isDoc,
     isSheet,
     isGmail,
+    isCalendar,
     detailContent,
     sheetValues,
     detailItem,
@@ -55,6 +56,14 @@ const DetailPanel = ({
                         <div className="text-[9px] uppercase text-gray-400 mb-1">Gmail Thread Content</div>
                         <div className="text-[11px] text-gray-200 whitespace-pre-wrap leading-relaxed select-text">
                             {detailContent || 'No thread content found.'}
+                        </div>
+                    </div>
+                )}
+                {isCalendar && (
+                    <div className="border border-red-900/40 bg-black/50 p-2 rounded">
+                        <div className="text-[9px] uppercase text-red-400 mb-1">Calendar Event Description</div>
+                        <div className="text-[11px] text-red-200 whitespace-pre-wrap leading-relaxed select-text">
+                            {detailContent || 'No description provided.'}
                         </div>
                     </div>
                 )}
