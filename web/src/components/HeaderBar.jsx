@@ -22,7 +22,7 @@ const HeaderBar = ({ user, connected, mode, onSyncMode, onRefresh }) => {
                 <div className="flex gap-8">
                     <span className={mode === 'AUTO' ? "text-emerald-500 font-bold" : "text-gray-600 cursor-pointer"} onClick={() => onSyncMode('AUTO')}>[A] AUTO</span>
                     <span className={mode === 'MANUAL' ? "text-yellow-600 font-bold" : "text-gray-600 cursor-pointer"} onClick={() => onSyncMode('MANUAL')}>[M] MANUAL</span>
-                    <span className={mode === 'MANUAL' ? "text-blue-500 cursor-pointer" : "text-gray-700 cursor-not-allowed"} onClick={() => mode === 'MANUAL' && onRefresh()}>[R] REFRESH</span>
+                    <span className="text-blue-500 cursor-pointer" onClick={onRefresh}>[R] REFRESH</span>
                 </div>
                 <div className={mode === 'AUTO' ? "text-emerald-400 animate-pulse" : "text-yellow-600"}>STATUS: {mode}</div>
             </div>

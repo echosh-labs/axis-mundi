@@ -1,10 +1,19 @@
 // Copyright (c) 2026 Justin Andrew Wood. All rights reserved.
 // This software is licensed under the AGPL-3.0.
 // Commercial licensing is available at echosh-labs.com.
-const RegistryList = ({ registry, selectedIndex, mode, registryRef, getTagStyles }) => (
+const RegistryList = ({ registry, selectedIndex, registryRef, getTagStyles, deletingIds }) => (
     <div ref={registryRef} className="flex-1 space-y-1 overflow-y-auto scrollbar-hide p-2 pb-2">
         {registry.map((item, i) => {
-            const isSelected = i === selectedIndex && mode === 'MANUAL';
+            if (deletingIds && deletingIds.has(item.id)) {
+                return (
+                    <div key={item.id} className="p-2 border border-red-500/80 bg-red-950/20 text-red-400 font-mono text-[10px]">
+                        <div className="font-bold">DELETING: {item.title || item.id}</div>
+                        <div className="mt-1 text-gray-500">Please wait while the resource is being removed...</div>
+                    </div>
+                );
+            }
+
+            const isSelected = i === selectedIndex;
             let activeClass = 'border-transparent text-gray-600';
 
             if (isSelected) {

@@ -29,11 +29,10 @@ export function useHotkeys(options) {
             if (key === 'a') { onSyncMode('AUTO'); setShowDetail(false); return; }
             if (key === 'm') { onSyncMode('MANUAL'); return; }
             if (key === 'r') {
-                if (mode === 'MANUAL') onRefresh();
+                onRefresh();
                 return;
             }
 
-            if (mode !== 'MANUAL') return;
 
             if ((showDetail || showHelp) && key === 'escape') {
                 setShowDetail(false);

@@ -23,6 +23,7 @@ const App = () => {
     const [detailItem, setDetailItem] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState(null);
+    const [deletingIds, setDeletingIds] = useState(new Set());
     const scrollRef = useRef(null);
     const registryRef = useRef(null);
     const detailRef = useRef(null);
@@ -77,6 +78,12 @@ const App = () => {
         selectedElement.scrollIntoView({ block: 'nearest' });
     }, [selectedIndex, visibleRegistry.length, showDetail]);
 
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [logs]);
+
     const closeDetail = useCallback(() => {
         setShowDetail(false);
         setDetailItem(null);
@@ -114,12 +121,33 @@ const App = () => {
         }
     }, [visibleRegistry, selectedIndex, fetchDetail, addLog]);
 
-    const handleDelete = useCallback(() => {
+    const handleDelete = useCallback(async () => {
         const target = visibleRegistry[selectedIndex];
         if (!target) return;
-        deleteItem(target);
+
+        if (mode === 'AUTO') {
+            addLog('error', 'Operation Denied: Items can only be purged in MANUAL mode.');
+            return;
+        }
+
+        setDeletingIds(prev => {
+            const next = new Set(prev);
+            next.add(target.id);
+            return next;
+        });
+
         if (showDetail) closeDetail();
-    }, [visibleRegistry, selectedIndex, deleteItem, showDetail, closeDetail]);
+
+        try {
+            await deleteItem(target);
+        } finally {
+            setDeletingIds(prev => {
+                const next = new Set(prev);
+                next.delete(target.id);
+                return next;
+            });
+        }
+    }, [visibleRegistry, selectedIndex, deleteItem, showDetail, closeDetail, mode, addLog]);
 
     const handleCycleStatus = useCallback((direction) => {
         if (visibleRegistry.length === 0) return;
@@ -265,9 +293,9 @@ const App = () => {
                         <RegistryList
                             registry={visibleRegistry}
                             selectedIndex={selectedIndex}
-                            mode={mode}
                             registryRef={registryRef}
                             getTagStyles={getTagStyles}
+                            deletingIds={deletingIds}
                         />
                     ) : (
                         <DetailPanel

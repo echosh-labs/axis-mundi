@@ -60,4 +60,20 @@ describe('useHotkeys', () => {
         expect(callbacks.onSelectNext).not.toHaveBeenCalled();
         expect(callbacks.onSelectPrev).not.toHaveBeenCalled();
     });
+
+    it('navigates list in AUTO mode', () => {
+        renderHook(() => useHotkeys({
+            mode: 'AUTO',
+            showDetail: false,
+            detailRef: makeDetailRef(),
+            detailScrollStep: 50,
+            ...callbacks,
+        }));
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+
+        expect(callbacks.onSelectNext).toHaveBeenCalledTimes(1);
+        expect(callbacks.onSelectPrev).toHaveBeenCalledTimes(1);
+    });
 });

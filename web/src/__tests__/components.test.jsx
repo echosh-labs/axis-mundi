@@ -21,9 +21,9 @@ describe('Components rendering', () => {
             <RegistryList
                 registry={sampleRegistry}
                 selectedIndex={1}
-                mode="MANUAL"
                 registryRef={{ current: null }}
                 getTagStyles={() => 'border-yellow-700/60 text-yellow-300'}
+                deletingIds={new Set()}
             />
         );
         expect(screen.getByText('Second')).toBeInTheDocument();
@@ -47,6 +47,21 @@ describe('Components rendering', () => {
         );
         expect(screen.getByText('Detail: Sample')).toBeInTheDocument();
         expect(screen.getByText('Body text')).toBeInTheDocument();
+    });
+
+    it('renders terminal interrupt when item is deleting', () => {
+        const deletingSet = new Set(['2']);
+        render(
+            <RegistryList
+                registry={sampleRegistry}
+                selectedIndex={1}
+                registryRef={{ current: null }}
+                getTagStyles={() => 'border-yellow-700/60 text-yellow-300'}
+                deletingIds={deletingSet}
+            />
+        );
+        expect(screen.getByText('DELETING: Second')).toBeInTheDocument();
+        expect(screen.getByText('Please wait while the resource is being removed...')).toBeInTheDocument();
     });
 });
 

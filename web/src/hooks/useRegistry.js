@@ -48,8 +48,12 @@ export function useRegistry({ addLog, onRegistryChange } = {}) {
         try {
             await deleteResource(item);
             addLog?.('success', `Object purged (${item?.type || 'item'}): ${item?.id || 'unknown'}`);
-        } catch {
-            addLog?.('error', `Purge failed for ${item?.type || 'item'}: ${item?.id || 'unknown'}`);
+        } catch (err) {
+            if (item?.type === 'doc' || item?.type === 'sheet') {
+                addLog?.('error', `Purge failed for ${item.type} (${item.title || item.id}): Insufficient permissions (Drive is configured in READ-ONLY mode).`);
+            } else {
+                addLog?.('error', `Purge failed for ${item?.type || 'item'} (${item?.title || item?.id || 'unknown'}): ${err.message || 'Unknown error'}`);
+            }
         }
     }, [addLog]);
 

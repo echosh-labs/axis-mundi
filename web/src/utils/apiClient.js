@@ -94,7 +94,10 @@ export async function deleteResource(item) {
             throw new Error(`Unknown item type for deletion: ${item?.type || 'unknown'}`);
     }
     const res = await fetch(url, { method: 'DELETE', timeout: DEFAULT_TIMEOUT });
-    if (!res.ok) throw new Error('Purge request failed');
+    if (!res.ok) {
+        const errMsg = await res.text().catch(() => '');
+        throw new Error(errMsg || 'Purge request failed');
+    }
 }
 
 export async function setStatus(item, status) {
