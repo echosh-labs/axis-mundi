@@ -11,11 +11,24 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// Store defines the repository interface for operational mode and item status persistence.
+// Decouples database consumers from concrete SQLite implementations in accordance with ecosystem standards.
+type Store interface {
+	GetMode() (string, error)
+	SetMode(mode string) error
+	GetStatuses() (map[string]string, error)
+	SetStatus(id, status string) error
+	DeleteStatus(id string) error
+	Close() error
+}
+
 // DB wraps the sql.DB connection and provides state-specific methods.
 type DB struct {
 	db *sql.DB
 	mu sync.RWMutex
 }
+
+var _ Store = (*DB)(nil)
 
 // NewDB initializes a new SQLite database connection and runs migrations.
 func NewDB(path string) (*DB, error) {

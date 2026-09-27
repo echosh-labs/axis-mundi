@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	"axis/internal/workspace"
 
@@ -759,29 +758,19 @@ func (h *Handler) toolListStatuses(id interface{}) *Response {
 // --- Resource Readers ---
 
 func (h *Handler) readKeepNote(ctx context.Context, noteID string) (string, error) {
-	note, err := h.ws.GetNote(ctx, noteID)
+	detail, err := h.ws.GetKeepNoteDetail(ctx, noteID)
 	if err != nil {
 		return "", err
 	}
-	return formatNoteContent(note), nil
+	return detail.Markdown(), nil
 }
 
 func (h *Handler) readDoc(docID string) (string, error) {
-	doc, err := h.ws.GetDoc(docID)
+	detail, err := h.ws.GetDocDetail(docID)
 	if err != nil {
 		return "", err
 	}
-
-	var b strings.Builder
-	b.WriteString("# ")
-	b.WriteString(doc.Title)
-	b.WriteString("\n\n")
-
-	if doc.Body != nil {
-		b.WriteString(workspace.ExtractDocContent(doc.Body.Content))
-	}
-
-	return b.String(), nil
+	return detail.Markdown(), nil
 }
 
 func (h *Handler) readSheet(sheetID string) (string, error) {
@@ -789,70 +778,27 @@ func (h *Handler) readSheet(sheetID string) (string, error) {
 }
 
 func (h *Handler) readSheetRange(sheetID, readRange string) (string, error) {
-	sheet, err := h.ws.GetSheet(sheetID)
+	detail, err := h.ws.GetSheetDetail(sheetID, readRange)
 	if err != nil {
 		return "", err
 	}
-
-	var b strings.Builder
-	b.WriteString("# ")
-	b.WriteString(sheet.Properties.Title)
-	b.WriteString("\n\n")
-
-	valuesResp, err := h.ws.GetSheetValues(sheetID, readRange)
-	if err != nil {
-		b.WriteString("[unable to read cell values]\n")
-		return b.String(), nil
-	}
-
-	if valuesResp != nil {
-		for _, row := range valuesResp.Values {
-			cells := make([]string, len(row))
-			for i, cell := range row {
-				cells[i] = fmt.Sprintf("%v", cell)
-			}
-			b.WriteString(strings.Join(cells, "\t"))
-			b.WriteString("\n")
-		}
-	}
-
-	return b.String(), nil
+	return detail.Markdown(), nil
 }
 
 func (h *Handler) readGmailThread(threadID string) (string, error) {
-	thread, err := h.ws.GetGmailThread(threadID)
+	detail, err := h.ws.GetGmailThreadDetail(threadID)
 	if err != nil {
 		return "", err
 	}
-	return workspace.ExtractThreadContent(thread), nil
+	return detail.Markdown(), nil
 }
 
 func (h *Handler) readCalendarEvent(eventID string) (string, error) {
-	event, err := h.ws.GetCalendarEvent(eventID)
+	detail, err := h.ws.GetCalendarEventDetail(eventID)
 	if err != nil {
 		return "", err
 	}
-	
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Event: %s\n", event.Summary))
-	if event.Start != nil && event.Start.DateTime != "" {
-		b.WriteString(fmt.Sprintf("Start: %s\n", event.Start.DateTime))
-	}
-	if event.End != nil && event.End.DateTime != "" {
-		b.WriteString(fmt.Sprintf("End: %s\n", event.End.DateTime))
-	}
-	if event.Location != "" {
-		b.WriteString(fmt.Sprintf("Location: %s\n", event.Location))
-	}
-	b.WriteString("\nDescription:\n")
-	if event.Description != "" {
-		b.WriteString(event.Description)
-	} else {
-		b.WriteString("[No description]")
-	}
-	b.WriteString("\n")
-
-	return b.String(), nil
+	return detail.Markdown(), nil
 }
 
 // --- Helpers ---
@@ -935,31 +881,6 @@ func noteSnippet(note *keepapi.Note) string {
 }
 
 func formatNoteContent(note *keepapi.Note) string {
-	if note == nil {
-		return ""
-	}
-
-	var b strings.Builder
-	b.WriteString("# ")
-	b.WriteString(noteTitle(note))
-	b.WriteString("\n\n")
-
-	if note.CreateTime != "" {
-		if t, err := time.Parse(time.RFC3339, note.CreateTime); err == nil {
-			b.WriteString(fmt.Sprintf("Created: %s\n", t.Format("2006-01-02 15:04:05")))
-		}
-	}
-	if note.UpdateTime != "" {
-		if t, err := time.Parse(time.RFC3339, note.UpdateTime); err == nil {
-			b.WriteString(fmt.Sprintf("Updated: %s\n", t.Format("2006-01-02 15:04:05")))
-		}
-	}
-	b.WriteString("\n")
-
-	content := workspace.ExtractFullContent(note.Body)
-	if content != "" {
-		b.WriteString(content)
-	}
-
-	return b.String()
+	return workspace.FormatKeepNote(note)
 }
+

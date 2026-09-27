@@ -12,6 +12,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	admin "google.golang.org/api/admin/directory/v1"
@@ -173,3 +174,71 @@ func TestExtractDocContent(t *testing.T) {
 		t.Errorf("expected '%s', got '%s'", expected, result)
 	}
 }
+
+func TestDocDetailMarkdown(t *testing.T) {
+	d := &DocDetail{
+		Title:      "Test Spec",
+		DocumentID: "doc-123",
+		Content:    "Hello world document content.",
+	}
+	md := d.Markdown()
+	if md != "# Test Spec\n\nHello world document content." {
+		t.Errorf("unexpected doc markdown: %q", md)
+	}
+}
+
+func TestSheetDetailMarkdown(t *testing.T) {
+	s := &SheetDetail{
+		Title:         "Financials",
+		SpreadsheetID: "sheet-456",
+		Values: [][]interface{}{
+			{"Item", "Cost"},
+			{"Widget", 100},
+		},
+	}
+	md := s.Markdown()
+	expected := "# Financials\n\nItem\tCost\nWidget\t100\n"
+	if md != expected {
+		t.Errorf("unexpected sheet markdown: %q", md)
+	}
+
+	empty := &SheetDetail{Title: "Empty"}
+	if empty.Markdown() != "# Empty\n\n[empty sheet or no values in range]\n" {
+		t.Errorf("unexpected empty sheet markdown: %q", empty.Markdown())
+	}
+}
+
+func TestCalendarEventDetailMarkdown(t *testing.T) {
+	ev := &CalendarEventDetail{
+		Title:       "Sync",
+		EventID:     "ev-1",
+		Summary:     "Weekly Team Sync",
+		Start:       "2026-09-27T10:00:00Z",
+		End:         "2026-09-27T11:00:00Z",
+		Location:    "Virtual",
+		Description: "Agenda items...",
+	}
+	md := ev.Markdown()
+	if !strings.Contains(md, "Event: Weekly Team Sync") ||
+		!strings.Contains(md, "Start: 2026-09-27T10:00:00Z") ||
+		!strings.Contains(md, "Location: Virtual") ||
+		!strings.Contains(md, "Agenda items...") {
+		t.Errorf("unexpected event markdown: %q", md)
+	}
+}
+
+func TestKeepNoteDetailMarkdown(t *testing.T) {
+	note := &KeepNoteDetail{
+		ID:         "note-1",
+		Title:      "Ideas",
+		Content:    "First idea\nSecond idea",
+		CreateTime: "2026-09-27T10:00:00Z",
+	}
+	md := note.Markdown()
+	if !strings.Contains(md, "# Ideas") ||
+		!strings.Contains(md, "Created: 2026-09-27") ||
+		!strings.Contains(md, "First idea\nSecond idea") {
+		t.Errorf("unexpected keep note markdown: %q", md)
+	}
+}
+
