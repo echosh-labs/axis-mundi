@@ -198,6 +198,7 @@ func (s *Server) Start(port string) error {
 	mux.HandleFunc("/api/notes/delete", s.handleDelete)
 	mux.HandleFunc("/api/notes/detail", s.handleNoteDetail)
 	mux.HandleFunc("/api/mode", s.handleMode)
+	mux.HandleFunc("/api/health", s.handleHealth)
 	mux.HandleFunc("/api/user", s.handleUser)
 	mux.HandleFunc("/api/sheets/detail", s.handleGetSheet)
 	mux.HandleFunc("/api/sheets/delete", s.handleDeleteSheet)
@@ -515,15 +516,19 @@ func (s *Server) backfillStatuses(items []workspace.RegistryItem) bool {
 		if _, exists := s.statuses[item.ID]; exists {
 			continue
 		}
-		s.statuses[item.ID] = "Pending"
+		defaultStatus := "Pending"
+		if s.mode == "AUTO" && item.Type == "keep" {
+			defaultStatus = "Execute"
+		}
+		s.statuses[item.ID] = defaultStatus
 		needSnapshot = true
 		newItems = append(newItems, item)
 	}
 	s.modeMu.Unlock()
 
-	// Broadcast telemetry for new items initialized to Pending
+	// Broadcast telemetry for new items initialized
 	for _, item := range newItems {
-		s.broadcastStatusChange(item.ID, "Pending", item.Title)
+		s.broadcastStatusChange(item.ID, s.statuses[item.ID], item.Title)
 	}
 
 	return needSnapshot
@@ -559,8 +564,13 @@ func (s *Server) ensureStatusDefault(id, defaultStatus string) (string, bool) {
 		return status, false
 	}
 
-	s.statuses[id] = defaultStatus
-	return defaultStatus, true
+	actualDefault := defaultStatus
+	if s.mode == "AUTO" && strings.HasPrefix(id, "notes/") {
+		actualDefault = "Execute"
+	}
+
+	s.statuses[id] = actualDefault
+	return actualDefault, true
 }
 
 func (s *Server) statusForKeep(id string) string {
@@ -680,6 +690,19 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	s.modeMu.RLock()
+	currentMode := s.mode
+	s.modeMu.RUnlock()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"status":  "UP",
+		"service": "axis-mundi",
+		"mode":    currentMode,
+		"port":    "8088",
+	})
+}
+
 func (s *Server) handleMode(w http.ResponseWriter, r *http.Request) {
 	newMode := r.URL.Query().Get("set")
 
@@ -719,8 +742,7 @@ func (s *Server) handleUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRegistry(w http.ResponseWriter, r *http.Request) {
-	manual := s.isManualMode()
-	forceRefresh := manual && truthyParam(r.URL.Query().Get("refresh"))
+	forceRefresh := truthyParam(r.URL.Query().Get("refresh"))
 	if forceRefresh {
 		s.refreshRegistryCache()
 		s.broadcastRegistry()

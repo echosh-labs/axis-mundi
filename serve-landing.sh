@@ -69,7 +69,11 @@ if [[ $NOBUILD -eq 0 ]]; then
 
     python3 - "$HTML_FILE" "$SHORT_HASH" "$HASH" <<'PY'
 import sys, re, pathlib
-html_paths = [pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[1]).parent / 'mcp' / 'index.html']
+html_paths = [
+    pathlib.Path(sys.argv[1]), 
+    pathlib.Path(sys.argv[1]).parent / 'tui.html',
+    pathlib.Path(sys.argv[1]).parent / 'mcp' / 'index.html'
+]
 short_hash = sys.argv[2]
 full_hash = sys.argv[3]
 pattern = r'href="([^"]*\/)landing\.[a-zA-Z0-9_\-]+\.css" (x?)integrity="[^"]+"'

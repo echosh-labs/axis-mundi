@@ -3,7 +3,7 @@
 // Commercial licensing is available at echosh-labs.com.
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-    content: ['./index.html', './mcp/index.html'],
+    content: ['./index.html', './tui.html', './mcp/index.html'],
     theme: {
         extend: {
             fontFamily: {

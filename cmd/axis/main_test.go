@@ -37,10 +37,10 @@ func TestDefaultPort(t *testing.T) {
 	os.Setenv("PORT", "")
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8088"
 	}
 
-	if port != "8080" {
-		t.Errorf("Expected default port 8080, got %s", port)
+	if port != "8088" {
+		t.Errorf("Expected default port 8088, got %s", port)
 	}
 }

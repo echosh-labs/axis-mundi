@@ -9,6 +9,7 @@ initialization logic for interfacing with Google Admin and Keep APIs.
 package workspace
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -98,19 +99,26 @@ func (s *Service) GetUser(email string) (*User, error) {
 func (s *Service) ListRegistryItems() ([]RegistryItem, error) {
 	var items []RegistryItem
 
-	// 1. Fetch Keep Notes
-	notes, err := s.keepService.Notes.List().Do()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list keep notes: %w", err)
-	}
-	for _, note := range notes.Notes {
-		if !note.Trashed {
-			items = append(items, RegistryItem{
-				ID:      note.Name,
-				Type:    "keep",
-				Title:   note.Title,
-				Snippet: "Google Keep Note",
-			})
+	// 1. Fetch Keep Notes (fully paginated with body-derived titles)
+	if s.keepService != nil {
+		keepNotes, err := s.ListAllKeepNotes(context.Background(), ListNotesOptions{PageSize: 100})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list keep notes: %w", err)
+		}
+		for _, note := range keepNotes {
+			if !note.Trashed {
+				summary := summarizeNote(note)
+				snippet := summary.Snippet
+				if snippet == "..." || snippet == "" {
+					snippet = "Google Keep Note"
+				}
+				items = append(items, RegistryItem{
+					ID:      note.Name,
+					Type:    "keep",
+					Title:   summary.Title,
+					Snippet: snippet,
+				})
+			}
 		}
 	}
 

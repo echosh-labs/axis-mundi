@@ -316,7 +316,28 @@ func summarizeNote(note *keepapi.Note) Note {
 
 	title := strings.TrimSpace(note.Title)
 	if title == "" {
-		title = "Untitled"
+		if note.Body != nil && note.Body.Text != nil && strings.TrimSpace(note.Body.Text.Text) != "" {
+			lines := strings.Split(strings.TrimSpace(note.Body.Text.Text), "\n")
+			if len(lines) > 0 && strings.TrimSpace(lines[0]) != "" {
+				title = strings.TrimSpace(lines[0])
+				if len(title) > 60 {
+					title = title[:57] + "..."
+				}
+			}
+		} else if note.Body != nil && note.Body.List != nil && len(note.Body.List.ListItems) > 0 {
+			for _, item := range note.Body.List.ListItems {
+				if item.Text != nil && strings.TrimSpace(item.Text.Text) != "" {
+					title = strings.TrimSpace(item.Text.Text)
+					if len(title) > 60 {
+						title = title[:57] + "..."
+					}
+					break
+				}
+			}
+		}
+		if title == "" {
+			title = "Untitled"
+		}
 	}
 
 	return Note{

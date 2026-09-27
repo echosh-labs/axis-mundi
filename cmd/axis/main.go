@@ -142,7 +142,7 @@ func main() {
 	// 7. Start the Persistent TUI Server
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8088"
 	}
 
 	srv := server.NewServer(ws, user)
