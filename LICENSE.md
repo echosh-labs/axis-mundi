@@ -1,3 +1,17 @@
+# echoSH Labs Dual-Mode License
+
+Copyright (c) 2026 Justin Andrew Wood. All rights reserved.
+
+This software is dual-licensed under:
+
+1. **GNU Affero General Public License v3.0 (AGPL-3.0)**:
+   For open source, personal, research, and educational usage. You may redistribute and/or modify this software under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+2. **Commercial & Enterprise License**:
+   For organizations and individuals seeking to integrate this software into proprietary, corporate, or closed-source products, or deploy advanced enterprise orchestration features without copyleft obligations. Commercial licensing terms and keys are available at [echosh-labs.com](https://echosh-labs.com) or by contacting [justin@echosh-labs.com](mailto:justin@echosh-labs.com). See [COMMERCIAL.md](COMMERCIAL.md) for enterprise terms.
+
+---
+
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 
