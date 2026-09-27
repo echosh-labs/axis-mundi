@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // UserResponse provides minimal operator context for the UI.
@@ -168,6 +169,10 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Disable write deadline for persistent SSE streaming
+	rc := http.NewResponseController(w)
+	_ = rc.SetWriteDeadline(time.Time{})
+
 	msgChan := make(chan SSEMessage, 10)
 	s.clientsMu.Lock()
 	s.clients[msgChan] = true
@@ -181,13 +186,25 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 
 	go s.sendInitialRegistrySnapshot(msgChan)
 
+	heartbeat := time.NewTicker(15 * time.Second)
+	defer heartbeat.Stop()
+
 	for {
 		select {
 		case msg := <-msgChan:
 			if msg.Event != "" {
-				fmt.Fprintf(w, "event: %s\n", msg.Event)
+				if _, err := fmt.Fprintf(w, "event: %s\n", msg.Event); err != nil {
+					return
+				}
 			}
-			fmt.Fprintf(w, "data: %s\n\n", msg.Data)
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", msg.Data); err != nil {
+				return
+			}
+			flusher.Flush()
+		case <-heartbeat.C:
+			if _, err := fmt.Fprintf(w, ": ping\n\n"); err != nil {
+				return
+			}
 			flusher.Flush()
 		case <-r.Context().Done():
 			return
